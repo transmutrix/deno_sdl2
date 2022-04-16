@@ -228,6 +228,10 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
     "parameters": ["pointer", "u8"],
     "result": "i32",
   },
+  "SDL_SetTextureBlendMode": {
+    "parameters": ["pointer", "u32"],
+    "result": "i32",
+  },
   "SDL_UpdateTexture": {
     "parameters": ["pointer", "pointer", "pointer", "i32"],
     "result": "i32",
@@ -661,6 +665,15 @@ export interface TextureQuery {
   h: number;
 }
 
+export enum BlendMode {
+  None = 0x00000000,
+  Blend = 0x00000001,
+  Add = 0x00000002,
+  Mod = 0x00000004,
+  Mul = 0x00000008,
+  Invalid = 0x7FFFFFFF,
+}
+
 export class Texture {
   [_raw]: Deno.UnsafePointer;
 
@@ -706,6 +719,13 @@ export class Texture {
 
   setAlphaMod(a: number) {
     const ret = sdl2.symbols.SDL_SetTextureAlphaMod(this.raw, a);
+    if (ret < 0) {
+      throwSDLError();
+    }
+  }
+
+  setBlendMode(blendMode: BlendMode) {
+    const ret = sdl2.symbols.SDL_SetTextureBlendMode(this.raw, blendMode);
     if (ret < 0) {
       throwSDLError();
     }
@@ -798,6 +818,8 @@ export class Surface {
     }
     return new Surface(raw);
   }
+
+  // TODO: Accessors.
 }
 
 const sizeOfEvent = 56; // type (u32) + event
