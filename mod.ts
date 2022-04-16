@@ -944,6 +944,7 @@ export class Window {
 }
 
 export class WindowBuilder {
+  // deno-lint-ignore no-inferrable-types
   private flags: number = 0;
   constructor(
     private title: string,
