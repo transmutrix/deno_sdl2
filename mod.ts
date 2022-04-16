@@ -705,6 +705,24 @@ export class Texture {
     };
   }
 
+  get width() {
+    return this.query().w;
+  }
+
+  get height() {
+    return this.query().h;
+  }
+
+  get size() {
+    const {w, h} = this.query();
+    return {width: w, height: h};
+  }
+
+  toRect(optionalTarget?: Rect) {
+    const q = this.query();
+    return (optionalTarget ?? new Rect()).set(0, 0, q.w, q.h);
+  }
+
   setColorMod(r: number, g: number, b: number) {
     const ret = sdl2.symbols.SDL_SetTextureColorMod(
       this.raw,
@@ -894,6 +912,7 @@ export class Surface {
   }
 
   // TODO: Accessors.
+  
 }
 
 const sizeOfEvent = 56; // type (u32) + event
