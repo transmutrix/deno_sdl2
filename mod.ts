@@ -291,7 +291,7 @@ function init() {
   }
   context_alive = true;
   const result = sdl2.symbols.SDL_Init(0);
-  if (result != 0) {
+  if (result !== 0) {
     const errPtr = sdl2.symbols.SDL_GetError();
     const view = new Deno.UnsafePointerView(errPtr);
     throw new Error(`SDL_Init failed: ${view.getCString()}`);
@@ -304,7 +304,7 @@ function init() {
   // SDL_INIT_EVENTS
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000001);
-    if (result != 0) {
+    if (result !== 0) {
       const errPtr = sdl2.symbols.SDL_GetError();
       const view = new Deno.UnsafePointerView(errPtr);
       throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
@@ -313,7 +313,7 @@ function init() {
   // SDL_INIT_VIDEO
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000010);
-    if (result != 0) {
+    if (result !== 0) {
       const errPtr = sdl2.symbols.SDL_GetError();
       const view = new Deno.UnsafePointerView(errPtr);
       throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
@@ -322,7 +322,7 @@ function init() {
   // SDL_INIT_IMAGE
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000004);
-    if (result != 0) {
+    if (result !== 0) {
       const errPtr = sdl2.symbols.SDL_GetError();
       const view = new Deno.UnsafePointerView(errPtr);
       throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
@@ -336,7 +336,7 @@ function init() {
   // SDL_INIT_TTF
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000100);
-    if (result != 0) {
+    if (result !== 0) {
       const errPtr = sdl2.symbols.SDL_GetError();
       const view = new Deno.UnsafePointerView(errPtr);
       throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
