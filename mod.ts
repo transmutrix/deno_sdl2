@@ -760,7 +760,21 @@ export class Rect {
 
   set height(n: number) {
     this[_raw][3] = n;
-  }  
+  }
+
+  set(x: number, y: number, width: number, height: number) {
+    this[_raw][0] = x;
+    this[_raw][1] = y;
+    this[_raw][2] = width;
+    this[_raw][3] = height;
+  }
+
+  clear() {
+    this[_raw][0] = 0;
+    this[_raw][1] = 0;
+    this[_raw][2] = 0;
+    this[_raw][3] = 0;
+  }
 }
 
 export class Surface {
