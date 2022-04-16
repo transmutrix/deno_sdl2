@@ -734,17 +734,33 @@ export class Rect {
     return this[_raw][0];
   }
 
+  set x(n: number) {
+    this[_raw][0] = n;
+  }
+
   get y() {
     return this[_raw][1];
+  }
+
+  set y(n: number) {
+    this[_raw][1] = n;
   }
 
   get width() {
     return this[_raw][2];
   }
 
+  set width(n: number) {
+    this[_raw][2] = n;
+  }
+
   get height() {
     return this[_raw][3];
   }
+
+  set height(n: number) {
+    this[_raw][3] = n;
+  }  
 }
 
 export class Surface {
