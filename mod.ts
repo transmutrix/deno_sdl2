@@ -624,8 +624,8 @@ export class TextureCreator {
   constructor(private raw: Deno.UnsafePointer) {}
 
   createTexture(
-    format: number,
-    access: number,
+    format: PixelFormat,
+    access: TextureAccess,
     w: number,
     h: number,
   ): Texture {
@@ -655,7 +655,7 @@ export class TextureCreator {
 }
 
 export interface TextureQuery {
-  format: number;
+  format: PixelFormat;
   access: TextureAccess;
   w: number;
   h: number;
