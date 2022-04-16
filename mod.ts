@@ -746,7 +746,7 @@ export class Texture {
 
 export class Rect {
   [_raw]: Uint32Array;
-  constructor(x: number, y: number, w: number, h: number) {
+  constructor(x = 0, y = 0, w = 0, h = 0) {
     this[_raw] = new Uint32Array([x, y, w, h]);
   }
 
@@ -782,11 +782,22 @@ export class Rect {
     this[_raw][3] = n;
   }
 
-  set(x: number, y: number, width: number, height: number) {
+  set(x: number, y: number, w: number, h: number) {
     this[_raw][0] = x;
     this[_raw][1] = y;
-    this[_raw][2] = width;
-    this[_raw][3] = height;
+    this[_raw][2] = w;
+    this[_raw][3] = h;
+    return this;
+  }
+
+  setPos(x: number, y: number) {
+    this[_raw][0] = x;
+    this[_raw][1] = y;
+  }
+
+  setSize(w: number, h: number) {
+    this[_raw][2] = w;
+    this[_raw][3] = h;
   }
 
   clear() {
@@ -794,6 +805,69 @@ export class Rect {
     this[_raw][1] = 0;
     this[_raw][2] = 0;
     this[_raw][3] = 0;
+    return this;
+  }
+
+  copy(r: Rect) {
+    if (this !== r) {
+      this[_raw][0] = r[_raw][0];
+      this[_raw][1] = r[_raw][1];
+      this[_raw][2] = r[_raw][2];
+      this[_raw][3] = r[_raw][3];
+    }
+    return this;
+  }
+
+  clone() {
+    return new Rect(this.x, this.y, this.width, this.height);
+  }
+
+  hasArea() {
+    return (this.width > 0 && this.height > 0);
+  }
+
+  static fromCenterSize(x: number, y: number, width: number, height: number, optionalTarget?: Rect) {
+    return (optionalTarget ?? new Rect()).set(x - width * .5, y - height * .5, width, height);
+  }
+
+  static fromCenterHalfSize(x: number, y: number, xRadius: number, yRadius: number, optionalTarget?: Rect) {
+    return (optionalTarget ?? new Rect()).set(x - xRadius, y - yRadius, xRadius * 2, yRadius * 2);
+  }
+
+  static fromMinMax(minX: number, minY: number, maxX: number, maxY: number, optionalTarget?: Rect) {
+    return (optionalTarget ?? new Rect()).set(minX, minY, maxX - minX, maxY - minY);
+  }
+
+  static union(a: Rect, b: Rect, optionalTarget?: Rect) {
+    return (optionalTarget ?? new Rect()).set(
+      Math.min(a.x, b.x),
+      Math.min(a.y, b.y),
+      Math.max(a.width, b.width),
+      Math.max(a.height, b.height)
+    );
+  }
+
+  static intersection(a: Rect, b: Rect, optionalTarget?: Rect) {
+    return (optionalTarget ?? new Rect()).set(
+      Math.max(a.x, b.x),
+      Math.max(a.y, b.y),
+      Math.min(a.width, b.width),
+      Math.min(a.height, b.height)
+    );
+  }
+
+  static subtileByIndex(parent: Rect, sizeX: number, sizeY: number, index: number, optionalTarget?: Rect) {
+    index = Math.floor(index);
+    const rows = Math.floor(parent.height / sizeY);
+    const cols = Math.floor(parent.width / sizeX);
+    const xTile = Math.floor(index % cols);
+    const yTile = Math.floor(index / cols) % rows;
+    return (optionalTarget ?? new Rect()).set(
+      parent.x + xTile * sizeX,
+      parent.y + yTile * sizeY,
+      sizeX,
+      sizeY
+    );
   }
 }
 
