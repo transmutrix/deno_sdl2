@@ -238,6 +238,10 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
     "parameters": ["pointer", "pointer", "pointer", "i32"],
     "result": "i32",
   },
+  "SDL_SetTextureScaleMode": {
+    "parameters": ["pointer", "i32"],
+    "result": "i32",
+  },
   "SDL_LoadBMP_RW": {
     "parameters": ["pointer"],
     "result": "pointer",
@@ -676,6 +680,12 @@ export enum BlendMode {
   Invalid = 0x7FFFFFFF,
 }
 
+export enum ScaleMode {
+  Nearest = 0x0,
+  Linear = 0x1,
+  Anisotropic = 0x2,
+}
+
 export class Texture {
   [_raw]: Deno.UnsafePointer;
 
@@ -757,6 +767,16 @@ export class Texture {
       rect ? rect[_raw] : null,
       Deno.UnsafePointer.of(pixels),
       pitch,
+    );
+    if (ret < 0) {
+      throwSDLError();
+    }
+  }
+
+  setScaleMode(mode: ScaleMode) {
+    const ret = sdl2.symbols.SDL_SetTextureScaleMode(
+      this.raw,
+      mode,
     );
     if (ret < 0) {
       throwSDLError();
@@ -958,7 +978,6 @@ export class Surface {
     if (r) return new Rect(r.x, r.y, r.width, r.height);
     return new Rect();
   }
-  
 }
 
 const sizeOfEvent = 56; // type (u32) + event
