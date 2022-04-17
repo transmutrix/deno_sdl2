@@ -32,6 +32,34 @@ function getLibraryPath(lib: string): string {
   }
 }
 
+let logging = false;
+let gcLogging = false;
+
+// deno-lint-ignore no-explicit-any
+function log(...rest: any[]) {
+  if (logging) console.log(...rest);
+}
+
+function gcLog(...rest: any[]) {
+  if (gcLogging) console.log(...rest);
+}
+
+export function enableLogging() {
+  logging = true;
+}
+
+export function disableLogging() {
+  logging = true;
+}
+
+export function enableGCLogging() {
+  gcLogging = true;
+}
+
+export function disableGCLogging() {
+  gcLogging = true;
+}
+
 const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
   "SDL_Init": {
     "parameters": ["u32"],
@@ -262,6 +290,10 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
     "parameters": ["pointer", "pointer"],
     "result": "pointer",
   },
+  "SDL_FreeSurface": {
+    "parameters": ["pointer"],
+    "result": "void",
+  }
 });
 
 const sdl2Image = Deno.dlopen(getLibraryPath("SDL2_image"), {
@@ -321,7 +353,7 @@ function init() {
 
   const platform = sdl2.symbols.SDL_GetPlatform();
   const view = new Deno.UnsafePointerView(platform);
-  console.log(`SDL2 initialized on ${view.getCString()}`);
+  log(`SDL2 initialized on ${view.getCString()}`);
   // Initialize subsystems
   // SDL_INIT_EVENTS
   {
@@ -779,8 +811,14 @@ export enum ScaleMode {
 export class Texture {
   [_raw]: Deno.UnsafePointer;
 
+  private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
+    sdl2.symbols.SDL_DestroyTexture(collected);
+    gcLog(`texture destroyed: ${collected.valueOf()}`);
+  });
+
   constructor(private raw: Deno.UnsafePointer) {
     this[_raw] = raw;
+    Texture._registry.register(this, raw);
   }
 
   query(): TextureQuery {
@@ -1030,9 +1068,15 @@ export class Surface {
   [_raw]: Deno.UnsafePointer;
   private view: Deno.UnsafePointerView;
 
+  private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
+    sdl2.symbols.SDL_FreeSurface(collected);
+    gcLog(`surface destroyed: ${collected.valueOf()}`);
+  });
+
   constructor(raw: Deno.UnsafePointer) {
     this[_raw] = raw;
     this.view = new Deno.UnsafePointerView(this[_raw]);
+    Surface._registry.register(this, raw);
   }
 
   static fromFile(path: string): Surface {
@@ -1216,8 +1260,16 @@ const eventReader: Record<EventType, Reader<any>> = {
 };
 
 export class Window {
-  constructor(private raw: Deno.UnsafePointer) {}
 
+  private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
+    sdl2.symbols.SDL_DestroyWindow(collected);
+    gcLog(`window destroyed: ${collected.valueOf()}`);
+  });
+  
+  constructor(private raw: Deno.UnsafePointer) {
+    Window._registry.register(this, raw);
+  }
+  
   canvas() {
     // Hardware accelerated canvas
     const raw = sdl2.symbols.SDL_CreateRenderer(this.raw, -1, 0);
