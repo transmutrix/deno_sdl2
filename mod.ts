@@ -40,6 +40,7 @@ function log(...rest: any[]) {
   if (logging) console.log(...rest);
 }
 
+// deno-lint-ignore no-explicit-any
 function gcLog(...rest: any[]) {
   if (gcLogging) console.log(...rest);
 }
@@ -404,7 +405,7 @@ function init() {
 
 init();
 
-export enum EventType {
+export const enum EventType {
   First = 0,
   Quit = 0x100,
   AppTerminating = 0x101,
@@ -413,7 +414,7 @@ export enum EventType {
   AppDidEnterBackground = 0x104,
   AppWillEnterForeground = 0x105,
   AppDidEnterForeground = 0x106,
-  WindowEvent = 0x200,
+  Window = 0x200,
   KeyDown = 0x300,
   KeyUp = 0x301,
   MouseMotion = 0x400,
@@ -1129,6 +1130,10 @@ const SDL_QuitEvent = new Struct({
   timestamp: u32,
 });
 
+interface QuitEvent {
+  type: EventType.Quit;
+}
+
 const SDL_CommonEvent = new Struct({
   type: u32,
   timestamp: u32,
@@ -1146,18 +1151,35 @@ const SDL_WindowEvent = new Struct({
   data2: i32,
 });
 
-// deno-lint-ignore no-unused-vars
-const SDL_DisplayEvent = new Struct({
-  type: u32,
-  timestamp: u32,
-  display: u32,
-  event: u8,
-  padding1: u8,
-  padding2: u8,
-  padding3: u8,
-  data1: i32,
-  data2: i32,
-});
+interface WindowEvent {
+  type: EventType.Window;
+  timestamp: number;
+  windowID: number;
+  event: number;
+  data1: number;
+  data2: number;
+}
+
+// const SDL_DisplayEvent = new Struct({
+//   type: u32,
+//   timestamp: u32,
+//   display: u32,
+//   event: u8,
+//   padding1: u8,
+//   padding2: u8,
+//   padding3: u8,
+//   data1: i32,
+//   data2: i32,
+// });
+
+// interface DisplayEvent {
+//   type: EventType.DisplayEvent;
+//   timestamp: number;
+//   display: number;
+//   event: number;
+//   data1: number;
+//   data2: number;
+// }
 
 const SDL_KeySym = new Struct({
   scancode: u32,
@@ -1177,6 +1199,18 @@ const SDL_KeyboardEvent = new Struct({
   keysym: SDL_KeySym,
 });
 
+interface KeyboardEvent {
+  type: EventType.KeyDown | EventType.KeyUp;
+  timestamp: number;
+  windowID: number;
+  state: number;
+  repeat: number;
+  keysym: {
+    scancode: number;
+    sym: number;
+  }
+}
+
 const SDL_MouseMotionEvent = new Struct({
   type: u32,
   timestamp: u32,
@@ -1188,6 +1222,18 @@ const SDL_MouseMotionEvent = new Struct({
   xrel: i32,
   yrel: i32,
 });
+
+interface MouseMotionEvent {
+  type: EventType.MouseMotion;
+  timestamp: number;
+  windowID: number;
+  which: number;
+  state: number;
+  x: number;
+  y: number;
+  xrel: number;
+  yrel: number;
+}
 
 const SDL_MouseButtonEvent = new Struct({
   type: u32,
@@ -1202,6 +1248,17 @@ const SDL_MouseButtonEvent = new Struct({
   y: i32,
 });
 
+interface MouseButtonEvent {
+  type: EventType.MouseButtonDown | EventType.MouseButtonUp;
+  timestamp: number;
+  windowID: number;
+  which: number;
+  button: number;
+  state: number;
+  x: number;
+  y: number;
+}
+
 const SDL_MouseWheelEvent = new Struct({
   type: u32,
   timestamp: u32,
@@ -1210,6 +1267,15 @@ const SDL_MouseWheelEvent = new Struct({
   x: i32,
   y: i32,
 });
+
+interface MouseWheelEvent {
+  type: EventType.MouseWheel;
+  timestamp: number;
+  windowID: number;
+  which: number;
+  x: number;
+  y: number;
+}
 
 const SDL_AudioDeviceEvent = new Struct({
   type: u32,
@@ -1222,6 +1288,15 @@ const SDL_AudioDeviceEvent = new Struct({
   data1: i32,
   data2: i32,
 });
+
+interface AudioDeviceEvent {
+  type: EventType.AudioDeviceAdded | EventType.AudioDeviceRemoved;
+  timestamp: number;
+  which: number;
+  event: number;
+  data1: number;
+  data2: number;
+}
 
 const SDL_FirstEvent = new Struct({
   type: u32,
@@ -1237,7 +1312,7 @@ type Reader<T> = (reader: Deno.UnsafePointerView) => T;
 const eventReader: Record<EventType, Reader<any>> = {
   [EventType.First]: makeReader(SDL_FirstEvent),
   [EventType.Quit]: makeReader(SDL_QuitEvent),
-  [EventType.WindowEvent]: makeReader(SDL_WindowEvent),
+  [EventType.Window]: makeReader(SDL_WindowEvent),
   [EventType.AppTerminating]: makeReader(SDL_CommonEvent),
   [EventType.AppLowMemory]: makeReader(SDL_CommonEvent),
   [EventType.AppWillEnterBackground]: makeReader(SDL_CommonEvent),
@@ -1255,9 +1330,52 @@ const eventReader: Record<EventType, Reader<any>> = {
   [EventType.AudioDeviceRemoved]: makeReader(SDL_AudioDeviceEvent),
   [EventType.User]: makeReader(SDL_CommonEvent),
   [EventType.Last]: makeReader(SDL_LastEvent),
-  // TODO: Unrechable code
+  // TODO: Unreachable code
   [EventType.Draw]: makeReader(SDL_CommonEvent),
 };
+
+interface DrawEvent {
+  type: EventType.Draw;
+}
+
+interface AppTerminatingEvent {
+  type: EventType.AppTerminating;
+}
+
+interface AppLowMemoryEvent {
+  type: EventType.AppLowMemory;
+}
+
+interface AppWillEnterBackgroundEvent {
+  type: EventType.AppWillEnterBackground;
+}
+
+interface AppDidEnterBackgroundEvent {
+  type: EventType.AppDidEnterBackground;
+}
+
+interface AppWillEnterForegroundEvent {
+  type: EventType.AppWillEnterForeground;
+}
+
+interface AppDidEnterForegroundEvent {
+  type: EventType.AppDidEnterForeground;
+}
+
+type Event = DrawEvent
+  | QuitEvent
+  | WindowEvent
+  | KeyboardEvent
+  | MouseMotionEvent
+  | MouseButtonEvent
+  | MouseWheelEvent
+  | AudioDeviceEvent
+  | AppTerminatingEvent
+  | AppLowMemoryEvent
+  | AppWillEnterBackgroundEvent
+  | AppDidEnterBackgroundEvent
+  | AppWillEnterForegroundEvent
+  | AppDidEnterForegroundEvent;
 
 export class Window {
 
@@ -1276,7 +1394,7 @@ export class Window {
     return new Canvas(this.raw, raw);
   }
 
-  *events() {
+  *events(): Generator<Event, void, unknown> {
     while (true) {
       const event = Deno.UnsafePointer.of(eventBuf);
       const pending = sdl2.symbols.SDL_PollEvent(event) == 1;
@@ -1889,11 +2007,19 @@ export enum KeyMod
   Caps = 0x2000,
   Mode = 0x4000,
   Scroll = 0x8000,
-
   Ctrl = LCtrl | RCtrl,
   Shift = LShift | RShift,
   Alt = LAlt | RAlt,
   Gui = LGui | RGui,
-
   Reserved = Scroll /* This is for source-level compatibility with SDL 2.0.0. */
 }
+
+/*
+TODO:
+  - Flesh out more of the SDL_Event stuff.
+    - Minimize, maximize, gamepads etc.
+  - Convenience rendering functions for canvas.
+  - Audio stuff.
+  - Gamecontroller.
+  - Input binding? Or leave that for another library?
+*/
