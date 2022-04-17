@@ -5,6 +5,8 @@ import {
   u16,
   u32,
   u8,
+  pointer,
+  cstring
 } from "https://deno.land/x/byte_type@0.1.7/ffi.ts";
 
 let DENO_SDL2_PATH: string | undefined;
@@ -889,10 +891,38 @@ export class Rect {
   }
 }
 
+const SDL_Rect = new Struct({
+  x: i32,
+  y: i32,
+  width: i32,
+  height: i32
+});
+
+const SDL_Surface = new Struct({
+  flags: u32,
+  format: pointer, // PixelFormat
+  // Charlie: I'm nervous about having pad this. It's not there in the SDL file on my machine.
+  padding0_: u32,
+  w: i32,
+  h: i32,
+  pitch: i32,
+  pixels: pointer,
+  userdata: pointer,
+  locked: i32,
+  list_bitmap: pointer,
+  list_blitmap: pointer,
+  clip_rect: SDL_Rect,
+  map: pointer, // SDL_BlitMap
+  refount: i32,
+});
+
 export class Surface {
   [_raw]: Deno.UnsafePointer;
+  private view: Deno.UnsafePointerView;
+
   constructor(raw: Deno.UnsafePointer) {
     this[_raw] = raw;
+    this.view = new Deno.UnsafePointerView(this[_raw]);
   }
 
   static fromFile(path: string): Surface {
@@ -911,7 +941,23 @@ export class Surface {
     return new Surface(raw);
   }
 
-  // TODO: Accessors.
+  get width() {
+    return SDL_Surface.get(this.view, 0, "w");
+  }
+
+  get height() {
+    return SDL_Surface.get(this.view, 0, "h");
+  }
+
+  get pitch() {
+    return SDL_Surface.get(this.view, 0, "pitch");
+  }
+
+  get clip_rect() {
+    const r = SDL_Surface.get(this.view, 0, "clip_rect");
+    if (r) return new Rect(r.x, r.y, r.width, r.height);
+    return new Rect();
+  }
   
 }
 
