@@ -885,7 +885,7 @@ export class TextureCreator {
     return new Texture(raw);
   }
 
-  createTextureFromSurface(surface: Surface): Texture {
+  fromSurface(surface: Surface): Texture {
     const raw = sdl2.symbols.SDL_CreateTextureFromSurface(
       this.raw,
       surface[_raw],
@@ -894,6 +894,14 @@ export class TextureCreator {
       throwSDLError();
     }
     return new Texture(raw);
+  }
+
+  fromFile(filename: string) {
+    const surface = Surface.fromFile(filename);
+    if (!surface) {
+      throw new Error("TextureCreator.createTextureFromFile: Couldn't load image!");
+    }
+    return this.fromSurface(surface);
   }
 }
 
@@ -1072,11 +1080,13 @@ export class Rect {
   setPos(x: number, y: number) {
     this[_raw][0] = x;
     this[_raw][1] = y;
+    return this;
   }
 
   setSize(w: number, h: number) {
     this[_raw][2] = w;
     this[_raw][3] = h;
+    return this;
   }
 
   clear() {
