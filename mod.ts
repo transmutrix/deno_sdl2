@@ -498,6 +498,9 @@ interface TexturePreviousRenderState {
   a: number;
 }
 
+export type CanvasCopyCall = {texture: Texture, source?: Rect, dest?: Rect};
+export type CanvasCopyCallEx = {texture: Texture, source?: Rect, dest?: Rect, radians?: number, center?: {x: number, y: number}, flipX?: boolean, flipY?: boolean};
+
 export class Canvas {
   private _previousTargetState?: TexturePreviousRenderState;
 
@@ -635,7 +638,76 @@ export class Canvas {
     }
   }
 
-  // TODO: convenience renderCopy functions (render a tile, render a sprite frame, etc.)?
+  copyBatch(list: CanvasCopyCall[], clear = false) {
+    for (const item of list) {
+      const ret = sdl2.symbols.SDL_RenderCopy(
+        this.target,
+        item.texture[_raw],
+        item.source?.[_raw] ?? null,
+        item.dest?.[_raw] ?? null,
+      );
+      if (ret < 0) {
+        throwSDLError();
+      }
+    }
+    if (clear) list.length = 0;
+  }
+
+  copyExBatch(list: CanvasCopyCallEx[], clear = false) {
+    for (const item of list) {
+      const ret = sdl2.symbols.SDL_RenderCopyEx(
+        this.target,
+        item.texture[_raw],
+        item.source?.[_raw] ?? null,
+        item.dest?.[_raw] ?? null,
+        (item.radians ?? 0) / Math.PI * 180,
+        item.center ? new Int32Array([item.center.x, item.center.y]) : null,
+        (item.flipX ? 1 : 0) + (item.flipY ? 2 : 0)
+      );
+      if (ret < 0) {
+        throwSDLError();
+      }
+    }
+    if (clear) list.length = 0;
+  }
+
+  // copySprite(texture: Texture, frameW: number, frameH: number, frame: number, x: number, y: number) {
+  //   const {w, h} = texture.query();
+  //   const cols = w / frameW;
+  //   const rows = h / frameH;
+  //   const n = cols * rows;
+  //   frame = Math.floor(frame % n);
+  //   if (frame < 0) frame = n - frame;
+  //   const sx = Math.floor(frame % cols) * frameW;
+	//   const sy = Math.floor(frame / cols) * frameH;
+  //   this.copy(texture, new Rect(sx, sy, frameW, frameH), new Rect(x, y, frameW, frameH));
+  // }
+
+  // copySpriteEx(texture: Texture, frameW: number, frameH: number, frame: number, x: number, y: number, scaleX = 1, scaleY = 1, radians = 0)
+  // {
+  //   const {w, h} = texture.query();
+  //   const cols = w / frameW;
+  //   const rows = h / frameH;
+  //   const n = cols * rows;
+  //   frame = Math.floor(frame % n);
+  //   if (frame < 0) frame = n - frame;
+  //   const sx = Math.floor(frame % cols) * frameW;
+	//   const sy = Math.floor(frame / cols) * frameH;
+  //   this.copyEx(texture, new Rect(sx, sy, frameW, frameH), new Rect(x, y, frameW * scaleX, frameH * scaleY), radians);
+  // }
+
+  copyTile(texture: Texture, tileSize: number, index: number, x: number, y: number)
+  {
+    const {w, h} = texture.query();
+    const cols = w / tileSize;
+    const rows = h / tileSize;
+    const n = cols * rows;
+    index = Math.floor(index % n);
+    if (index < 0) index = n - index;
+    const sx = Math.floor(index % cols) * tileSize;
+	  const sy = Math.floor(index / cols) * tileSize;
+    this.copy(texture, new Rect(sx, sy, tileSize, tileSize), new Rect(x, y, tileSize, tileSize));
+  }
 
   textureCreator() {
     return new TextureCreator(this.target);
@@ -2055,7 +2127,6 @@ export enum KeyMod {
 TODO:
   - Flesh out more of the SDL_Event stuff.
     - Minimize, maximize, gamepads etc.
-  - Convenience rendering functions for canvas.
   - Audio stuff.
   - Gamecontroller.
   - Input binding? Or leave that for another library?
