@@ -204,6 +204,18 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
     "parameters": ["pointer", "pointer", "u32", "pointer", "i32"],
     "result": "i32",
   },
+  "SDL_GetRenderTarget": {
+    "parameters": ["pointer"],
+    "result": "pointer"
+  },
+  "SDL_SetRenderTarget": {
+    "parameters": ["pointer", "pointer"],
+    "result": "i32"
+  },
+  "SDL_GetRenderDrawColor": {
+    "parameters": ["pointer", "pointer", "pointer", "pointer", "pointer"],
+    "result": "i32"
+  },
   "SDL_CreateTexture": {
     "parameters": ["pointer", "u32", "i32", "i32", "i32"],
     "result": "pointer",
@@ -421,7 +433,18 @@ function throwSDLError(): never {
   throw new Error(`SDL Error: ${view.getCString()}`);
 }
 
+interface TexturePreviousRenderState {
+  target: Deno.UnsafePointer;
+  newTarget: Deno.UnsafePointer;
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
 export class Canvas {
+  private _previousTargetState?: TexturePreviousRenderState;
+  
   constructor(
     private window: Deno.UnsafePointer,
     private target: Deno.UnsafePointer,
@@ -549,6 +572,73 @@ export class Canvas {
     const raw = sdl2Font.symbols.TTF_OpenFont(asCString(path), size);
     return new Font(raw);
   }
+
+  bindRenderTarget(target: Texture) {
+    const query = target.query();
+    if (query.access !== TextureAccess.Target) {
+      throw new Error("Canvas.bindRenderTarget: Target texture access must be TextureAccess.Target");
+    }
+    if (this._previousTargetState) {
+      throw new Error("Canvas.bindRenderTarget: Must unbind previous render target before binding another");
+    }
+    const prevR = new Uint8Array(1);
+    const prevG = new Uint8Array(1);
+    const prevB = new Uint8Array(1);
+    const prevA = new Uint8Array(1);
+    let ret = sdl2.symbols.SDL_GetRenderDrawColor(this.target,
+      Deno.UnsafePointer.of(prevR),
+      Deno.UnsafePointer.of(prevG),
+      Deno.UnsafePointer.of(prevB),
+      Deno.UnsafePointer.of(prevA));
+      if (ret < 0) {
+        throwSDLError();
+      }
+      const prevTarget = sdl2.symbols.SDL_GetRenderTarget(this.target);
+    ret = sdl2.symbols.SDL_SetRenderTarget(this.target, target[_raw]);
+    if (ret < 0) {
+      throwSDLError();
+    }
+    this._previousTargetState = {
+      target: prevTarget,
+      newTarget: target[_raw],
+      r: prevR[0],
+      g: prevG[0],
+      b: prevB[0],
+      a: prevA[0]
+    };
+  }
+
+  unbindRenderTarget(target: Texture) {
+    const query = target.query();
+    if (query.access !== TextureAccess.Target) {
+      throw new Error("Canvas.unbindRenderTarget: Target texture access must be TextureAccess.Target");
+    }
+    if (!this._previousTargetState) {
+      throw new Error("Canvas.unbindRenderTarget: No render target bound. Cannot unbind.");
+    }
+    const {target: prevTarget, newTarget: matchTarget, r, g, b, a} = this._previousTargetState;
+
+    // FIXME (Charlie): For some reason, SDL_GetRenderTarget returns a non-NULL pointer which is different to
+    //     the one we gave it. The value is consistent between calls, and I know the render target itself is
+    //     correct because it can be rendered to without issues. The pointer is the wrong value though.
+    //     Alignment / padding issue for Deno/SDL2 on M1?
+    // if (curTarget.valueOf() !== target[_raw].valueOf()) {
+    if (matchTarget.valueOf() !== target[_raw].valueOf()) {
+      throw new Error("Canvas.unbindRenderTarget: Bound target and passed target are different!");
+    }
+    
+    let ret = sdl2.symbols.SDL_SetRenderTarget(this.target, prevTarget);
+    if (ret < 0) {
+      throwSDLError();
+    }
+    ret = sdl2.symbols.SDL_SetRenderDrawColor(this.target, r, g, b, a);
+    if (ret < 0) {
+      throwSDLError();
+    }
+    this._previousTargetState = undefined;
+  }
+
+  // TODO: convenience renderCopy functions (render a tile, render a sprite frame, etc.)?
 }
 
 export class Font {
