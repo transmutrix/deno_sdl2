@@ -6,7 +6,7 @@ import {
   u32,
   u8,
   pointer,
-  cstring
+  // cstring
 } from "https://deno.land/x/byte_type@0.1.7/ffi.ts";
 
 let DENO_SDL2_PATH: string | undefined;
@@ -899,21 +899,21 @@ const SDL_Rect = new Struct({
 });
 
 const SDL_Surface = new Struct({
-  flags: u32,
-  format: pointer, // PixelFormat
-  // Charlie: I'm nervous about having pad this. It's not there in the SDL file on my machine.
+  flags: u32, // readonly
+  format: pointer, // PixelFormat, readonly
   padding0_: u32,
-  w: i32,
-  h: i32,
-  pitch: i32,
-  pixels: pointer,
-  userdata: pointer,
-  locked: i32,
-  list_bitmap: pointer,
-  list_blitmap: pointer,
-  clip_rect: SDL_Rect,
-  map: pointer, // SDL_BlitMap
-  refount: i32,
+  w: i32, // readonly
+  h: i32, // readonly
+  pitch: i32, // readonly
+  pixels: pointer, // read-write
+  userdata: pointer, // read-write
+  padding2_: u32,
+  locked: i32, // readonly
+  list_blitmap: pointer, // private
+  padding3_: u32,
+  clip_rect: SDL_Rect, // readonly
+  map: pointer, // SDL_BlitMap, private
+  refount: i32, // read-mostly
 });
 
 export class Surface {
