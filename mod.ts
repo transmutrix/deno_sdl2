@@ -20,8 +20,8 @@ const OS_PREFIX = Deno.build.os === "windows" ? "" : "lib";
 const OS_SUFFIX = Deno.build.os === "windows"
   ? ".dll"
   : Deno.build.os === "darwin"
-  ? ".dylib"
-  : ".so";
+    ? ".dylib"
+    : ".so";
 
 function getLibraryPath(lib: string): string {
   lib = `${OS_PREFIX}${lib}${OS_SUFFIX}`;
@@ -408,49 +408,72 @@ init();
 export const enum EventType {
   First = 0,
   Quit = 0x100,
+  // mobile app events
   AppTerminating = 0x101,
   AppLowMemory = 0x102,
   AppWillEnterBackground = 0x103,
   AppDidEnterBackground = 0x104,
   AppWillEnterForeground = 0x105,
   AppDidEnterForeground = 0x106,
+  // window events
   Window = 0x200,
+  // keyboard events
   KeyDown = 0x300,
   KeyUp = 0x301,
+  // TextEditing = 0x302,
+  // TextInput = 0x303,
+  // KeymapChanged = 0x304,
+  // mouse events
   MouseMotion = 0x400,
   MouseButtonDown = 0x401,
   MouseButtonUp = 0x402,
   MouseWheel = 0x403,
-  //  JoyAxisMotion = 0x600,
-  //  JoyBallMotion = 0x601,
-  //  JoyHatMotion = 0x602,
-  //  JoyButtonDown = 0x603,
-  //  JoyButtonUp = 0x604,
-  //  JoyDeviceAdded = 0x605,
-  //  JoyDeviceRemoved = 0x606,
-  //  ControllerAxisMotion = 0x650,
-  //  ControllerButtonDown = 0x651,
-  //  ControllerButtonUp = 0x652,
-  //  ControllerDeviceAdded = 0x653,
-  //  ControllerDeviceRemoved = 0x654,
-  //  ControllerDeviceRemapped = 0x655,
-  //  FingerDown = 0x700,
-  //  FingerUp = 0x701,
-  //  FingerMotion = 0x702,
-  //  DollarGesture = 0x800,
-  //  DollarRecord = 0x801,
-  //  MultiGesture = 0x802,
-  //  ClipboardUpdate = 0x900,
-  //  DropFile = 0x1000,
-  //  DropText = 0x1001,
-  //  DropBegin = 0x1002,
-  //  DropComplete = 0x1003,
+  // joystick events
+  // JoyAxisMotion = 0x600,
+  // JoyBallMotion = 0x601,
+  // JoyHatMotion = 0x602,
+  // JoyButtonDown = 0x603,
+  // JoyButtonUp = 0x604,
+  // JoyDeviceAdded = 0x605,
+  // JoyDeviceRemoved = 0x606,
+  // controller events
+  // ControllerAxisMotion = 0x650,
+  // ControllerButtonDown = 0x651,
+  // ControllerButtonUp = 0x652,
+  // ControllerDeviceAdded = 0x653,
+  // ControllerDeviceRemoved = 0x654,
+  // ControllerDeviceRemapped = 0x655,
+  // ControllerTouchpadDown = 0x656,
+  // ControllerTouchpadMotion = 0x657,
+  // ControllerTouchpadUp = 0x658,
+  // ControllerSensorUpdate = 0x659,
+  // touch events
+  // FingerDown = 0x700,
+  // FingerUp = 0x701,
+  // FingerMotion = 0x702,
+  // gesture events
+  // DollarGesture = 0x800,
+  // DollarRecord = 0x801,
+  // MultiGesture = 0x802,
+  // clipboard
+  // ClipboardUpdate = 0x900,
+  // drag and drop events
+  // DropFile = 0x1000,
+  // DropText = 0x1001,
+  // DropBegin = 0x1002,
+  // DropComplete = 0x1003,
+  // audio device events
   AudioDeviceAdded = 0x1100,
   AudioDeviceRemoved = 0x1101,
+  // sensor events
+  // SensorUpdate = 0x1200,
+  // render events
   //  RenderTargetsReset = 0x2000,
   //  RenderDeviceReset = 0x2001,
+  // user event range
   User = 0x8000,
   Last = 0xFFFF,
+  // provided by us
   Draw,
 }
 
@@ -477,11 +500,11 @@ interface TexturePreviousRenderState {
 
 export class Canvas {
   private _previousTargetState?: TexturePreviousRenderState;
-  
+
   constructor(
     private window: Deno.UnsafePointer,
     private target: Deno.UnsafePointer,
-  ) {}
+  ) { }
 
   setDrawColor(r: number, g: number, b: number, a: number) {
     const ret = sdl2.symbols.SDL_SetRenderDrawColor(this.target, r, g, b, a);
@@ -623,10 +646,10 @@ export class Canvas {
       Deno.UnsafePointer.of(prevG),
       Deno.UnsafePointer.of(prevB),
       Deno.UnsafePointer.of(prevA));
-      if (ret < 0) {
-        throwSDLError();
-      }
-      const prevTarget = sdl2.symbols.SDL_GetRenderTarget(this.target);
+    if (ret < 0) {
+      throwSDLError();
+    }
+    const prevTarget = sdl2.symbols.SDL_GetRenderTarget(this.target);
     ret = sdl2.symbols.SDL_SetRenderTarget(this.target, target[_raw]);
     if (ret < 0) {
       throwSDLError();
@@ -649,7 +672,7 @@ export class Canvas {
     if (!this._previousTargetState) {
       throw new Error("Canvas.unbindRenderTarget: No render target bound. Cannot unbind.");
     }
-    const {target: prevTarget, newTarget: matchTarget, r, g, b, a} = this._previousTargetState;
+    const { target: prevTarget, newTarget: matchTarget, r, g, b, a } = this._previousTargetState;
 
     // FIXME (Charlie): For some reason, SDL_GetRenderTarget returns a non-NULL pointer which is different to
     //     the one we gave it. The value is consistent between calls, and I know the render target itself is
@@ -659,7 +682,7 @@ export class Canvas {
     if (matchTarget.valueOf() !== target[_raw].valueOf()) {
       throw new Error("Canvas.unbindRenderTarget: Bound target and passed target are different!");
     }
-    
+
     let ret = sdl2.symbols.SDL_SetRenderTarget(this.target, prevTarget);
     if (ret < 0) {
       throwSDLError();
@@ -754,7 +777,7 @@ export enum TextureAccess {
 }
 
 export class TextureCreator {
-  constructor(private raw: Deno.UnsafePointer) {}
+  constructor(private raw: Deno.UnsafePointer) { }
 
   createTexture(
     format: PixelFormat,
@@ -855,8 +878,8 @@ export class Texture {
   }
 
   get size() {
-    const {w, h} = this.query();
-    return {width: w, height: h};
+    const { w, h } = this.query();
+    return { width: w, height: h };
   }
 
   toRect(optionalTarget?: Rect) {
@@ -1383,11 +1406,11 @@ export class Window {
     sdl2.symbols.SDL_DestroyWindow(collected);
     gcLog(`window destroyed: ${collected.valueOf()}`);
   });
-  
+
   constructor(private raw: Deno.UnsafePointer) {
     Window._registry.register(this, raw);
   }
-  
+
   canvas() {
     // Hardware accelerated canvas
     const raw = sdl2.symbols.SDL_CreateRenderer(this.raw, -1, 0);
@@ -1397,7 +1420,7 @@ export class Window {
   *events(): Generator<Event, void, unknown> {
     while (true) {
       const event = Deno.UnsafePointer.of(eventBuf);
-      const pending = sdl2.symbols.SDL_PollEvent(event) == 1;
+      const pending = sdl2.symbols.SDL_PollEvent(event) === 1;
       if (!pending) {
         yield { type: EventType.Draw };
       }
@@ -1420,7 +1443,7 @@ export class WindowBuilder {
     private title: string,
     private width: number,
     private height: number,
-  ) {}
+  ) { }
 
   build() {
     const title = asCString(this.title);
@@ -1992,8 +2015,7 @@ export enum KeyCode {
   AudioFastforward = 0x4000011E,
 }
 
-export enum KeyMod
-{
+export enum KeyMod {
   None = 0x0000,
   LShift = 0x0001,
   RShift = 0x0002,
