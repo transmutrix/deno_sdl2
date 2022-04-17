@@ -223,7 +223,7 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
       "pointer",
       "pointer",
       "pointer",
-      "f32",
+      "f64",
       "pointer",
       "u32",
     ],
@@ -612,13 +612,30 @@ export class Canvas {
     const ret = sdl2.symbols.SDL_RenderCopy(
       this.target,
       texture[_raw],
-      source ? source[_raw] : null,
-      dest ? dest[_raw] : null,
+      source?.[_raw] ?? null,
+      dest?.[_raw] ?? null,
     );
     if (ret < 0) {
       throwSDLError();
     }
   }
+
+  copyEx(texture: Texture, source?: Rect, dest?: Rect, radians?: number, center?: {x: number, y: number}, flipX?: boolean, flipY?: boolean) {
+    const ret = sdl2.symbols.SDL_RenderCopyEx(
+      this.target,
+      texture[_raw],
+      source?.[_raw] ?? null,
+      dest?.[_raw] ?? null,
+      (radians ?? 0) / Math.PI * 180,
+      center ? new Int32Array([center.x, center.y]) : null,
+      (flipX ? 1 : 0) + (flipY ? 2 : 0)
+    );
+    if (ret < 0) {
+      throwSDLError();
+    }
+  }
+
+  // TODO: convenience renderCopy functions (render a tile, render a sprite frame, etc.)?
 
   textureCreator() {
     return new TextureCreator(this.target);
@@ -693,8 +710,6 @@ export class Canvas {
     }
     this._previousTargetState = undefined;
   }
-
-  // TODO: convenience renderCopy functions (render a tile, render a sprite frame, etc.)?
 }
 
 export class Font {
