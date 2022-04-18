@@ -2,6 +2,7 @@ import {
   i32,
   SizedFFIType,
   Struct,
+  i16,
   u16,
   u32,
   u8,
@@ -405,6 +406,7 @@ function init() {
 
 init();
 
+// TODO: Finish fleshing out
 export const enum EventType {
   First = 0,
   Quit = 0x100,
@@ -437,11 +439,11 @@ export const enum EventType {
   // JoyDeviceAdded = 0x605,
   // JoyDeviceRemoved = 0x606,
   // controller events
-  // ControllerAxisMotion = 0x650,
-  // ControllerButtonDown = 0x651,
-  // ControllerButtonUp = 0x652,
-  // ControllerDeviceAdded = 0x653,
-  // ControllerDeviceRemoved = 0x654,
+  ControllerAxisMotion = 0x650,
+  ControllerButtonDown = 0x651,
+  ControllerButtonUp = 0x652,
+  ControllerDeviceAdded = 0x653,
+  ControllerDeviceRemoved = 0x654,
   // ControllerDeviceRemapped = 0x655,
   // ControllerTouchpadDown = 0x656,
   // ControllerTouchpadMotion = 0x657,
@@ -1419,6 +1421,107 @@ interface MouseWheelEvent {
   y: number;
 }
 
+// TODO XXX
+
+export const enum ControllerAxisRange {
+  Min = -32768,
+  Max = 32767
+}
+
+export const enum ControllerAxis {
+  Invalid = -1,
+  LeftX,
+  LeftY,
+  RightX,
+  RightY,
+  TriggerLeft,
+  TriggerRight,
+  Max
+}
+
+export const enum ControllerButton {
+  Invalid = -1,
+  // face buttons (note: XBox layout in SDL)
+  A,
+  B,
+  X,
+  Y,
+  Back,
+  Guide,
+  Start,
+  LeftStick,
+  RightStick,
+  LeftShoulder,
+  RightShoulder,
+  DpadUp,
+  DpadDown,
+  DpadLeft,
+  DpadRight,
+  Misc1,    // Xbox Series X share button, PS5 microphone button, Nintendo Switch Pro capture button, Amazon Luna microphone button
+  Paddle1,  // Xbox Elite paddle P1
+  Paddle2,  // Xbox Elite paddle P3
+  Paddle3,  // Xbox Elite paddle P2
+  Paddle4,  // Xbox Elite paddle P4
+  Touchpad, // PS4/PS5 touchpad button
+  Max,
+  // non-confusing names for these
+  FaceUp = Y,
+  FaceRight = B,
+  FaceDown = A,
+  FaceLeft = X,
+  Select = Back,
+}
+
+const SDL_ControllerAxisEvent = new Struct({
+  type: u32,
+  timestamp: u32,
+  which: i32, // The joystick instance id
+  axis: u8,   // The controller axis (SDL_GameControllerAxis)
+  padding1: u8,
+  padding2: u8,
+  padding3: u8,
+  value: i16, // The axis value (range: -32768 to 32767)
+  padding4: u16,
+});
+
+interface ControllerAxisEvent {
+  type: EventType.ControllerAxisMotion;
+  timestamp: number;
+  which: number;
+  axis: ControllerAxis;
+  value: number;
+}
+
+const SDL_ControllerButtonEvent = new Struct({
+  type: u32,
+  timestamp: u32,
+  which: i32,     // The joystick instance id
+  button: u8,     // The controller button (SDL_GameControllerButton) 
+  state: u8,      // ::SDL_PRESSED or ::SDL_RELEASED
+  padding1: u8,
+  padding2: u8,
+});
+
+interface ControllerButtonEvent {
+  type: EventType.ControllerButtonDown | EventType.ControllerButtonUp;
+  timestamp: number;
+  which: number;
+  button: ControllerButton;
+  state: boolean;
+}
+
+const SDL_ControllerDeviceEvent = new Struct({
+  type: u32,
+  timestamp: u32,
+  which: i32,     // The joystick device index for the ADDED event, instance id for the REMOVED or REMAPPED event
+});
+
+interface ControllerDeviceEvent {
+  type: EventType.ControllerDeviceAdded | EventType.ControllerDeviceRemoved;
+  timestamp: number;
+  which: number;
+}
+
 const SDL_AudioDeviceEvent = new Struct({
   type: u32,
   timestamp: u32,
@@ -1468,6 +1571,13 @@ const eventReader: Record<EventType, Reader<any>> = {
   [EventType.MouseButtonDown]: makeReader(SDL_MouseButtonEvent),
   [EventType.MouseButtonUp]: makeReader(SDL_MouseButtonEvent),
   [EventType.MouseWheel]: makeReader(SDL_MouseWheelEvent),
+  // controller events
+  [EventType.ControllerAxisMotion]: makeReader(SDL_ControllerAxisEvent),
+  [EventType.ControllerButtonDown]: makeReader(SDL_ControllerButtonEvent),
+  [EventType.ControllerButtonUp]: makeReader(SDL_ControllerButtonEvent),
+  [EventType.ControllerDeviceAdded]: makeReader(SDL_ControllerDeviceEvent),
+  [EventType.ControllerDeviceRemoved]: makeReader(SDL_ControllerDeviceEvent),
+  // audio events
   [EventType.AudioDeviceAdded]: makeReader(SDL_AudioDeviceEvent),
   [EventType.AudioDeviceRemoved]: makeReader(SDL_AudioDeviceEvent),
   [EventType.User]: makeReader(SDL_CommonEvent),
@@ -1517,7 +1627,10 @@ export type Event = DrawEvent
   | AppWillEnterBackgroundEvent
   | AppDidEnterBackgroundEvent
   | AppWillEnterForegroundEvent
-  | AppDidEnterForegroundEvent;
+  | AppDidEnterForegroundEvent
+  | ControllerAxisEvent
+  | ControllerButtonEvent
+  | ControllerDeviceEvent;
 
 export class Window {
 
