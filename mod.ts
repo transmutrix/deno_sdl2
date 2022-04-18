@@ -1465,8 +1465,6 @@ interface MouseWheelEvent {
   y: number;
 }
 
-// TODO XXX
-
 export const enum ControllerAxisRange {
   Min = -32768,
   Max = 32767
@@ -1626,7 +1624,7 @@ const eventReader: Record<EventType, Reader<any>> = {
   [EventType.AudioDeviceRemoved]: makeReader(SDL_AudioDeviceEvent),
   [EventType.User]: makeReader(SDL_CommonEvent),
   [EventType.Last]: makeReader(SDL_LastEvent),
-  // TODO: Unreachable code
+  // Note: Unreachable code
   [EventType.Draw]: makeReader(SDL_CommonEvent),
 };
 
@@ -1709,6 +1707,32 @@ function checkControllers() {
   }
 }
 
+export const enum WindowFlag {
+  Fullscreen = 0x00000001,
+  OpenGL = 0x00000002,
+  Shown = 0x00000004,
+  Hidden = 0x00000008,
+  Borderless = 0x00000010,
+  Resizable = 0x00000020,
+  Minimized = 0x00000040,
+  Maximized = 0x00000080,
+  MouseGrabbed = 0x00000100,
+  InputFocused = 0x00000200,
+  MouseFocused = 0x00000400,
+  FullscreenDesktop = (Fullscreen | 0x00001000),
+  Foreign = 0x00000800,
+  HighDPI = 0x00002000,
+  MouseCaptured = 0x00004000,
+  AlwaysOnTop = 0x00008000,
+  SkipTaskbar = 0x00010000,
+  Utility = 0x00020000,
+  Tooltip = 0x00040000,
+  PopupMenu = 0x00080000,
+  KeyboardGrabbed = 0x00100000,
+  Vulkan = 0x10000000,
+  Metal = 0x20000000,
+}
+
 export class Window {
 
   private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
@@ -1747,12 +1771,11 @@ export class Window {
 }
 
 export class WindowBuilder {
-  // deno-lint-ignore no-inferrable-types
-  private flags: number = 0;
   constructor(
     private title: string,
     private width: number,
     private height: number,
+    private flags = 0,
   ) { }
 
   build() {
@@ -1769,57 +1792,52 @@ export class WindowBuilder {
   }
 
   fullscreen() {
-    this.flags |= 0x00000001;
+    this.flags |= WindowFlag.Fullscreen;
     return this;
   }
 
   resizable() {
-    this.flags |= 0x00000002;
+    this.flags |= WindowFlag.Resizable;
     return this;
   }
 
   borderless() {
-    this.flags |= 0x00000004;
+    this.flags |= WindowFlag.Borderless;
     return this;
   }
 
   alwaysOnTop() {
-    this.flags |= 0x00000008;
+    this.flags |= WindowFlag.AlwaysOnTop;
     return this;
   }
 
   openGL() {
-    this.flags |= 0x00000010;
+    this.flags |= WindowFlag.OpenGL;
     return this;
   }
 
   highDPI() {
-    this.flags |= 0x00000020;
+    this.flags |= WindowFlag.HighDPI;
     return this;
   }
 
   inputGrabbed() {
-    this.flags |= 0x00000040;
+    this.flags |= WindowFlag.MouseGrabbed;
     return this;
   }
 
   inputFocus() {
-    this.flags |= 0x00000080;
+    this.flags |= WindowFlag.InputFocused;
     return this;
   }
 
   mouseFocus() {
-    this.flags |= 0x00000100;
+    this.flags |= WindowFlag.MouseFocused;
     return this;
   }
 
   foreign() {
-    this.flags |= 0x00000200;
-    return this;
-  }
-
-  allowHighDPI() {
-    this.flags |= 0x00000400;
+    this.flags |= WindowFlag.Foreign;
     return this;
   }
 }
