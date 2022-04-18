@@ -1617,6 +1617,15 @@ export class Surface {
   }
 }
 
+const Mix_Chunk = new Struct({
+  allocated: i32,
+  abuf: pointer,
+  alen: u32,
+  volume: u8, // Per-sample volume, 0-128
+});
+
+// Note: Mix_Music is just an opaque pointer.
+
 const sizeOfEvent = 56; // type (u32) + event
 const eventBuf = new Uint8Array(sizeOfEvent);
 function makeReader<T extends Record<string, SizedFFIType<unknown>>>(
