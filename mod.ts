@@ -295,7 +295,23 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
   "SDL_FreeSurface": {
     "parameters": ["pointer"],
     "result": "void",
-  }
+  },
+  "SDL_NumJoysticks": {
+    "parameters": [],
+    "result": "i32",
+  },
+  "SDL_IsGameController": {
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "SDL_GameControllerOpen": {
+    "parameters": ["i32"],
+    "result": "pointer",
+  },
+  "SDL_GameControllerClose": {
+    "parameters": ["pointer"],
+    "result": "void",
+  },
 });
 
 const sdl2Image = Deno.dlopen(getLibraryPath("SDL2_image"), {
@@ -340,6 +356,25 @@ const sdl2Font = Deno.dlopen(getLibraryPath("SDL2_ttf"), {
   },
 });
 
+enum SDL_InitFlag {
+  SDL_INIT_TIMER = 0x00000001,
+  SDL_INIT_AUDIO = 0x00000010,
+  SDL_INIT_VIDEO = 0x00000020, // SDL_INIT_VIDEO implies SDL_INIT_EVENTS
+  SDL_INIT_JOYSTICK = 0x00000200, // SDL_INIT_JOYSTICK implies SDL_INIT_EVENTS
+  SDL_INIT_HAPTIC = 0x00001000,
+  SDL_INIT_GAMECONTROLLER = 0x00002000, // SDL_INIT_GAMECONTROLLER implies SDL_INIT_JOYSTICK
+  SDL_INIT_EVENTS = 0x00004000,
+  SDL_INIT_SENSOR = 0x00008000,
+  SDL_INIT_EVERYTHING = SDL_INIT_TIMER 
+    | SDL_INIT_AUDIO 
+    | SDL_INIT_VIDEO 
+    | SDL_INIT_EVENTS 
+    | SDL_INIT_JOYSTICK 
+    | SDL_INIT_HAPTIC 
+    | SDL_INIT_GAMECONTROLLER 
+    | SDL_INIT_SENSOR
+}
+
 let context_alive = false;
 function init() {
   if (context_alive) {
@@ -359,7 +394,7 @@ function init() {
   // Initialize subsystems
   // SDL_INIT_EVENTS
   {
-    const result = sdl2.symbols.SDL_InitSubSystem(0x00000001);
+    const result = sdl2.symbols.SDL_InitSubSystem(0x00000001); // FIXME: Flag is wrong?
     if (result !== 0) {
       const errPtr = sdl2.symbols.SDL_GetError();
       const view = new Deno.UnsafePointerView(errPtr);
@@ -368,7 +403,16 @@ function init() {
   }
   // SDL_INIT_VIDEO
   {
-    const result = sdl2.symbols.SDL_InitSubSystem(0x00000010);
+    const result = sdl2.symbols.SDL_InitSubSystem(0x00000010); // FIXME: Flag is wrong?
+    if (result !== 0) {
+      const errPtr = sdl2.symbols.SDL_GetError();
+      const view = new Deno.UnsafePointerView(errPtr);
+      throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
+    }
+  }
+  // SDL_INIT_GAMECONTROLLER
+  {
+    const result = sdl2.symbols.SDL_InitSubSystem(SDL_InitFlag.SDL_INIT_GAMECONTROLLER | SDL_InitFlag.SDL_INIT_HAPTIC);
     if (result !== 0) {
       const errPtr = sdl2.symbols.SDL_GetError();
       const view = new Deno.UnsafePointerView(errPtr);
@@ -1632,6 +1676,39 @@ export type Event = DrawEvent
   | ControllerButtonEvent
   | ControllerDeviceEvent;
 
+// TODO: Should we assign slots automatically?
+
+interface ControllerEntry {
+  raw: Deno.UnsafePointer;
+  id: number;
+  connected: boolean;
+}
+
+const controllers: ControllerEntry[] = [];
+
+function findControllerByJoystickID(id: number) {
+  for (const entry of controllers) {
+    if (entry.id === id) return entry;
+  }
+}
+
+function checkControllers() {
+  const numJoysticks = sdl2.symbols.SDL_NumJoysticks();
+  for (let i = 0; i < numJoysticks; ++i) {
+    if (sdl2.symbols.SDL_IsGameController(i)) {
+      if (findControllerByJoystickID(i)) {
+        continue;
+      }
+      const raw = sdl2.symbols.SDL_GameControllerOpen(i);
+      if (raw.valueOf() === BigInt(0)) {
+        continue;
+      }
+      controllers.push({raw, id: i, connected: true});
+      log("controller connected");
+    }
+  }
+}
+
 export class Window {
 
   private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
@@ -1654,6 +1731,7 @@ export class Window {
       const event = Deno.UnsafePointer.of(eventBuf);
       const pending = sdl2.symbols.SDL_PollEvent(event) === 1;
       if (!pending) {
+        checkControllers();
         yield { type: EventType.Draw };
       }
       const view = new Deno.UnsafePointerView(event);
@@ -2273,6 +2351,5 @@ TODO:
   - Flesh out more of the SDL_Event stuff.
     - Minimize, maximize, gamepads etc.
   - Audio stuff.
-  - Gamecontroller.
   - Input binding? Or leave that for another library?
 */
