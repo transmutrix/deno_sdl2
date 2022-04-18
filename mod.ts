@@ -364,26 +364,6 @@ const sdl2Font = Deno.dlopen(getLibraryPath("SDL2_ttf"), {
   },
 });
 
-const enum Mix_InitFlag {
-  FLAC = 0x00000001,
-  MOD  = 0x00000002,
-  MP3  = 0x00000008,
-  OGG  = 0x00000010,
-  MID  = 0x00000020,
-  OPUS = 0x00000040,
-}
-
-const enum Mix_Defaults {
-  Frequency = 22050,
-  Format = 0x8010, // From SDL_audio.h -- AUDIO_S16LSB
-}
-
-const enum MixFadeType {
-  None,
-  Out,
-  In,
-}
-
 // XXX
 const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
   "Mix_Init": {
@@ -636,6 +616,26 @@ type MixEffectFunc = (channel: number, stream: Deno.UnsafePointer, length: numbe
 // typedef void (*Mix_EffectDone_t)(int chan, void *udata);
 type MixEffectDone = (channel: number, userdata: Deno.UnsafePointer) => void;
 
+const enum Mix_InitFlag {
+  FLAC = 0x00000001,
+  MOD  = 0x00000002,
+  MP3  = 0x00000008,
+  OGG  = 0x00000010,
+  MID  = 0x00000020,
+  OPUS = 0x00000040,
+}
+
+const enum Mix_Defaults {
+  Frequency = 22050,
+  Format = 0x8010, // From SDL_audio.h -- AUDIO_S16LSB
+}
+
+const enum MixFadeType {
+  None,
+  Out,
+  In,
+}
+
 enum SDL_InitFlag {
   SDL_INIT_TIMER = 0x00000001,
   SDL_INIT_AUDIO = 0x00000010,
@@ -728,7 +728,7 @@ function init() {
     }
   }
   {
-    let result = sdl2Mixer.symbols.Mix_Init(Mix_InitFlag.MP3 | Mix_InitFlag.OGG);
+    let result = sdl2Mixer.symbols.Mix_Init(Mix_InitFlag.MP3 | Mix_InitFlag.OGG | Mix_InitFlag.MOD);
     if (result === 0) {
       throwSDLError("Mix_Init failed");
     }
@@ -1616,15 +1616,6 @@ export class Surface {
     return new Rect();
   }
 }
-
-const Mix_Chunk = new Struct({
-  allocated: i32,
-  abuf: pointer,
-  alen: u32,
-  volume: u8, // Per-sample volume, 0-128
-});
-
-// Note: Mix_Music is just an opaque pointer.
 
 const sizeOfEvent = 56; // type (u32) + event
 const eventBuf = new Uint8Array(sizeOfEvent);
@@ -2693,6 +2684,86 @@ export enum KeyMod {
   Gui = LGui | RGui,
   Reserved = Scroll /* This is for source-level compatibility with SDL 2.0.0. */
 }
+
+
+// SDL_Mixer
+
+const Mix_Chunk = new Struct({
+  allocated: i32,
+  abuf: pointer,
+  alen: u32,
+  volume: u8, // Per-sample volume, 0-128
+});
+
+// Note: Mix_Music is just an opaque pointer.
+
+// XXX
+
+export class Sound {
+  private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
+    sdl2Mixer.symbols.Mix_FreeChunk(collected);
+    gcLog(`sound destroyed: ${collected.valueOf()}`);
+  });
+
+  [_raw]: Deno.UnsafePointer;
+
+  constructor(raw: Deno.UnsafePointer) {
+    this[_raw] = raw;
+    Sound._registry.register(this, raw);
+  }
+
+  play(channel?: number, loops?: number, seconds?: number) {
+    const ret = sdl2Mixer.symbols.Mix_PlayChannelTimed(
+      channel ?? -1,
+      this[_raw],
+      loops ?? 0,
+      (seconds ? Math.floor(seconds * 1000) : -1));
+    if (ret < 0) {
+      throwSDLError();
+    }
+    return ret;
+  }
+
+  static fromFile(filename: string) {
+    const raw = sdl2Mixer.symbols.Mix_LoadWAV_RW(sdl2.symbols.SDL_RWFromFile(asCString(filename), asCString("rb")), 1);
+    if (raw.valueOf() === BigInt(0)) {
+      throwSDLError("Mix_LoadWAV_RW");
+    }
+    return new Sound(raw);
+  }
+}
+
+export class Music {
+  private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
+    sdl2Mixer.symbols.Mix_FreeMusic(collected);
+    gcLog(`music destroyed: ${collected.valueOf()}`);
+  });
+
+  [_raw]: Deno.UnsafePointer;
+
+  constructor(raw: Deno.UnsafePointer) {
+    this[_raw] = raw;
+    Music._registry.register(this, raw);
+  }
+
+  play(loops?: number) {
+    const ret = sdl2Mixer.symbols.Mix_PlayMusic(this[_raw], loops ?? -1);
+    if (ret < 0) {
+      throwSDLError();
+    }
+    // TODO: register finished callback?
+  }
+
+  static fromFile(filename: string) {
+    const raw = sdl2Mixer.symbols.Mix_LoadMUS(asCString(filename));
+    if (raw.valueOf() === BigInt(0)) {
+      throwSDLError("Mix_LoadMUS");
+    }
+    return new Music(raw);
+  }
+}
+
+// TODO: Mixer channel groups and whatever.
 
 /*
 TODO:
