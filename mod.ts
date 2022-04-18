@@ -498,8 +498,40 @@ interface TexturePreviousRenderState {
   a: number;
 }
 
-export type CanvasCopyCall = {texture: Texture, source?: Rect, dest?: Rect};
-export type CanvasCopyCallEx = {texture: Texture, source?: Rect, dest?: Rect, radians?: number, center?: {x: number, y: number}, flipX?: boolean, flipY?: boolean};
+export const enum CopyCallType {
+  Normal,
+  Ex,
+  Tile,
+}
+
+export interface CopyCallNormal {
+  type: CopyCallType.Normal;
+  texture: Texture;
+  source?: Rect;
+  dest?: Rect;
+}
+
+export interface CopyCallEx {
+  type: CopyCallType.Ex;
+  texture: Texture;
+  source?: Rect;
+  dest?: Rect;
+  radians?: number;
+  center?: {x: number; y: number};
+  flipX?: boolean;
+  flipY?: boolean;
+}
+
+export interface CopyCallTile {
+  type: CopyCallType.Tile;
+  texture: Texture;
+  tileSize: number;
+  index: number;
+  x: number;
+  y: number;
+}
+
+export type CopyCall = CopyCallNormal | CopyCallEx | CopyCallTile;
 
 export class Canvas {
   private _previousTargetState?: TexturePreviousRenderState;
@@ -638,34 +670,12 @@ export class Canvas {
     }
   }
 
-  copyBatch(list: CanvasCopyCall[], clear = false) {
+  copyBatch(list: CopyCall[], clear = false) {
     for (const item of list) {
-      const ret = sdl2.symbols.SDL_RenderCopy(
-        this.target,
-        item.texture[_raw],
-        item.source?.[_raw] ?? null,
-        item.dest?.[_raw] ?? null,
-      );
-      if (ret < 0) {
-        throwSDLError();
-      }
-    }
-    if (clear) list.length = 0;
-  }
-
-  copyExBatch(list: CanvasCopyCallEx[], clear = false) {
-    for (const item of list) {
-      const ret = sdl2.symbols.SDL_RenderCopyEx(
-        this.target,
-        item.texture[_raw],
-        item.source?.[_raw] ?? null,
-        item.dest?.[_raw] ?? null,
-        (item.radians ?? 0) / Math.PI * 180,
-        item.center ? new Int32Array([item.center.x, item.center.y]) : null,
-        (item.flipX ? 1 : 0) + (item.flipY ? 2 : 0)
-      );
-      if (ret < 0) {
-        throwSDLError();
+      switch (item.type) {
+        case CopyCallType.Normal: this.copy(item.texture, item.source, item.dest); break;
+        case CopyCallType.Ex: this.copyEx(item.texture, item.source, item.dest, item.radians, item.center, item.flipX, item.flipY); break;
+        case CopyCallType.Tile: this.copyTile(item.texture, item.tileSize, item.index, item.x, item.y); break;
       }
     }
     if (clear) list.length = 0;
@@ -992,6 +1002,7 @@ export class Texture {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   setAlphaMod(a: number) {
@@ -999,6 +1010,7 @@ export class Texture {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   setBlendMode(blendMode: BlendMode) {
@@ -1006,6 +1018,7 @@ export class Texture {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   update(pixels: Uint8Array, pitch: number, rect?: Rect) {
@@ -1018,6 +1031,7 @@ export class Texture {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   setScaleMode(mode: ScaleMode) {
@@ -1028,6 +1042,7 @@ export class Texture {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 }
 
