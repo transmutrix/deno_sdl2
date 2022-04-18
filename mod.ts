@@ -178,6 +178,10 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
     "parameters": ["pointer", "u32"],
     "result": "i32",
   },
+  "SDL_RenderSetLogicalSize": {
+    "parameters": ["pointer", "i32", "i32"],
+    "result": "i32",
+  },
   "SDL_RenderPresent": {
     "parameters": ["pointer"],
     "result": "i32",
@@ -592,6 +596,18 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
+  }
+
+  setLogicalSize(width: number, height: number) {
+    if (width <= 0 || height <= 0) {
+      throw new Error("invalid argument!");
+    }
+    const ret = sdl2.symbols.SDL_RenderSetLogicalSize(this.target, width, height);
+    if (ret < 0) {
+      throwSDLError();
+    }
+    return this;
   }
 
   clear() {
@@ -599,10 +615,12 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   present() {
     sdl2.symbols.SDL_RenderPresent(this.target);
+    return this;
   }
 
   drawPoint(x: number, y: number) {
@@ -610,6 +628,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   drawPoints(points: [number, number][]) {
@@ -622,6 +641,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   drawLine(x1: number, y1: number, x2: number, y2: number) {
@@ -629,6 +649,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   drawLines(points: [number, number][]) {
@@ -641,6 +662,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   drawRect(x: number, y: number, w: number, h: number) {
@@ -652,6 +674,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   drawRects(rects: [number, number, number, number][]) {
@@ -664,6 +687,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   fillRect(x: number, y: number, w: number, h: number) {
@@ -675,6 +699,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   fillRects(rects: [number, number, number, number][]) {
@@ -687,6 +712,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   copy(texture: Texture, source?: Rect, dest?: Rect) {
@@ -699,6 +725,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   copyEx(texture: Texture, source?: Rect, dest?: Rect, radians?: number, center?: {x: number, y: number}, flipX?: boolean, flipY?: boolean) {
@@ -714,6 +741,7 @@ export class Canvas {
     if (ret < 0) {
       throwSDLError();
     }
+    return this;
   }
 
   copyBatch(list: CopyCall[], clear = false) {
@@ -725,6 +753,7 @@ export class Canvas {
       }
     }
     if (clear) list.length = 0;
+    return this;
   }
 
   // copySprite(texture: Texture, frameW: number, frameH: number, frame: number, x: number, y: number) {
@@ -737,6 +766,7 @@ export class Canvas {
   //   const sx = Math.floor(frame % cols) * frameW;
 	//   const sy = Math.floor(frame / cols) * frameH;
   //   this.copy(texture, new Rect(sx, sy, frameW, frameH), new Rect(x, y, frameW, frameH));
+  //   return this;
   // }
 
   // copySpriteEx(texture: Texture, frameW: number, frameH: number, frame: number, x: number, y: number, scaleX = 1, scaleY = 1, radians = 0)
@@ -750,6 +780,7 @@ export class Canvas {
   //   const sx = Math.floor(frame % cols) * frameW;
 	//   const sy = Math.floor(frame / cols) * frameH;
   //   this.copyEx(texture, new Rect(sx, sy, frameW, frameH), new Rect(x, y, frameW * scaleX, frameH * scaleY), radians);
+  //   return this;
   // }
 
   copyTile(texture: Texture, tileSize: number, index: number, x: number, y: number)
@@ -763,6 +794,7 @@ export class Canvas {
     const sx = Math.floor(index % cols) * tileSize;
 	  const sy = Math.floor(index / cols) * tileSize;
     this.copy(texture, new Rect(sx, sy, tileSize, tileSize), new Rect(x, y, tileSize, tileSize));
+    return this;
   }
 
   textureCreator() {
@@ -807,6 +839,7 @@ export class Canvas {
       b: prevB[0],
       a: prevA[0]
     };
+    return this;
   }
 
   unbindRenderTarget(target: Texture) {
@@ -837,6 +870,7 @@ export class Canvas {
       throwSDLError();
     }
     this._previousTargetState = undefined;
+    return this;
   }
 }
 
@@ -2369,5 +2403,7 @@ TODO:
   - Flesh out more of the SDL_Event stuff.
     - Minimize, maximize, gamepads etc.
   - Audio stuff.
+    - SDL_Mixer at a minimum?
+    - Or are there better audio options for Deno already?
   - Input binding? Or leave that for another library?
 */
