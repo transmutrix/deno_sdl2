@@ -316,6 +316,10 @@ const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
     "parameters": ["pointer"],
     "result": "void",
   },
+  "SDL_RWFromFile": { //SDL_RWops* SDL_RWFromFile(const char *file, const char *mode);
+    "parameters": ["pointer", "pointer"],
+    "result": "pointer",
+  },
 });
 
 const sdl2Image = Deno.dlopen(getLibraryPath("SDL2_image"), {
@@ -360,6 +364,278 @@ const sdl2Font = Deno.dlopen(getLibraryPath("SDL2_ttf"), {
   },
 });
 
+const enum Mix_InitFlag {
+  FLAC = 0x00000001,
+  MOD  = 0x00000002,
+  MP3  = 0x00000008,
+  OGG  = 0x00000010,
+  MID  = 0x00000020,
+  OPUS = 0x00000040,
+}
+
+const enum Mix_Defaults {
+  Frequency = 22050,
+  Format = 0x8010, // From SDL_audio.h -- AUDIO_S16LSB
+}
+
+const enum MixFadeType {
+  None,
+  Out,
+  In,
+}
+
+// XXX
+const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
+  "Mix_Init": {
+    "parameters": ["i32"], // Mix_InitFlags OR'd
+    "result": "i32",
+  },
+  "Mix_Quit": {
+    "parameters": [],
+    "result": "void",
+  },
+  "Mix_OpenAudio": { // (int frequency, Uint16 format, int channels, int chunksize);
+    "parameters": ["i32", "u16", "i32", "i32"],
+    "result": "i32",
+  },
+  // "Mix_OpenAudioDevice": { // (int frequency, Uint16 format, int channels, int chunksize, const char* device, int allowed_changes);
+  //   "parameters": ["i32", "u16", "i32", "i32", "pointer", "i32"],
+  //   "result": "i32",
+  // },
+  // "Mix_AllocateChannels": { // (int numchans);
+  //   "parameters": ["i32"],
+  //   "result": "i32",
+  // },
+  // #define Mix_LoadWAV(file)   Mix_LoadWAV_RW(SDL_RWFromFile(file, "rb"), 1)
+  "Mix_LoadWAV_RW": { // Mix_Chunk * SDLCALL Mix_LoadWAV_RW(SDL_RWops *src, int freesrc);
+    "parameters": ["pointer", "i32"],
+    "result": "pointer",
+  },
+  "Mix_LoadMUS": { // Mix_Music * SDLCALL Mix_LoadMUS(const char *file);
+    "parameters": ["pointer"],
+    "result": "pointer",
+  },
+  "Mix_FreeChunk": { // void SDLCALL Mix_FreeChunk(Mix_Chunk *chunk);
+    "parameters": ["pointer"],
+    "result": "void",
+  },
+  "Mix_FreeMusic": { // void SDLCALL Mix_FreeMusic(Mix_Music *music);
+    "parameters": ["pointer"],
+    "result": "void",
+  },
+  "Mix_HookMusicFinished": { // void SDLCALL Mix_HookMusicFinished(void (SDLCALL *music_finished)(void));
+    "parameters": ["pointer"],
+    "result": "void",
+  },
+  "Mix_ChannelFinished": { // void SDLCALL Mix_ChannelFinished(void (SDLCALL *channel_finished)(int channel));
+    "parameters": ["pointer"],
+    "result": "void",
+  },
+  "Mix_SetPanning": { // int SDLCALL Mix_SetPanning(int channel, Uint8 left, Uint8 right);
+    "parameters": ["i32", "u8", "u8"],
+    "result": "i32",
+  },
+  "Mix_SetPosition": { // int SDLCALL Mix_SetPosition(int channel, Sint16 angle, Uint8 distance);
+    "parameters": ["i32", "i16", "u8"],
+    "result": "i32",
+  },
+  "Mix_SetDistance": { // int SDLCALL Mix_SetDistance(int channel, Uint8 distance);
+    "parameters": ["i32", "u8"],
+    "result": "i32",
+  },
+  "Mix_SetReverseStereo": { // (int channel, int flip);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_ReserveChannels": { // (int num);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_GroupChannel": { // (int which, int tag);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_GroupChannels": { // (int from, int to, int tag);
+    "parameters": ["i32", "i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_GroupAvailable": { // (int tag);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_GroupCount": { // (int tag);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_GroupOldest": { // (int tag);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_GroupNewer": { // (int tag);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  // #define Mix_PlayChannel(channel,chunk,loops) Mix_PlayChannelTimed(channel,chunk,loops,-1)
+  "Mix_PlayChannelTimed": { // int Mix_PlayChannelTimed(int channel, Mix_Chunk *chunk, int loops, int ticks);
+    "parameters": ["i32", "pointer", "i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_PlayMusic": { // int Mix_PlayMusic(Mix_Music *music, int loops);
+    "parameters": ["pointer", "i32"],
+    "result": "i32",
+  },
+  "Mix_FadeInMusic": { // int Mix_FadeInMusic(Mix_Music *music, int loops, int ms);
+    "parameters": ["pointer", "i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_FadeInMusicPos": { // int Mix_FadeInMusicPos(Mix_Music *music, int loops, int ms, double position);
+    "parameters": ["pointer", "i32", "i32", "f64"],
+    "result": "i32",
+  },
+  // #define Mix_FadeInChannel(channel,chunk,loops,ms) Mix_FadeInChannelTimed(channel,chunk,loops,ms,-1)
+  "Mix_FadeInChannelTimed": { // int (int channel, Mix_Chunk *chunk, int loops, int ms, int ticks);
+    "parameters": ["i32", "pointer", "i32", "i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_Volume": { // int (int channel, int volume);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_VolumeChunk": { // int (Mix_Chunk *chunk, int volume);
+    "parameters": ["pointer", "i32"],
+    "result": "i32",
+  },
+  "Mix_VolumeMusic": { // int (int volume);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_HaltChannel": { // int (int channel);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_HaltGroup": { // int (int tag);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_HaltMusic": { // int (void);
+    "parameters": [],
+    "result": "i32",
+  },
+  "Mix_ExpireChannel": { // int (int channel, int ticks);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_FadeOutChannel": { // int (int which, int ms);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_FadeOutGroup": { // int (int tag, int ms);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  "Mix_FadeOutMusic": { // int (int ms);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_FadingMusic": { // Mix_Fading (void);
+    "parameters": [],
+    "result": "i32",
+  },
+  "Mix_FadingChannel": { // Mix_Fading (int which);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_Pause": { // void (int channel);
+    "parameters": ["i32"],
+    "result": "void",
+  },
+  "Mix_Resume": { // void (int channel);
+    "parameters": ["i32"],
+    "result": "void",
+  },
+  "Mix_Paused": { // int (int channel);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_PauseMusic": { // void (void);
+    "parameters": [],
+    "result": "void",
+  },
+  "Mix_ResumeMusic": { // void (void);
+    "parameters": [],
+    "result": "void",
+  },
+  "Mix_RewindMusic": { // void (void);
+    "parameters": [],
+    "result": "void",
+  },
+  "Mix_PausedMusic": { // int (void);
+    "parameters": [],
+    "result": "i32",
+  },
+  "Mix_SetMusicPosition": { // int (double position);
+    "parameters": ["f64"],
+    "result": "i32",
+  },
+  "Mix_Playing": { // int (int channel);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_PlayingMusic": { // int (void);
+    "parameters": [],
+    "result": "i32",
+  },
+  "Mix_SetMusicCMD": { // int (const char *command);
+    "parameters": ["pointer"],
+    "result": "i32",
+  },
+  "Mix_SetSynchroValue": { // int (int value);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+  "Mix_GetSynchroValue": { // int (void);
+    "parameters": [],
+    "result": "i32",
+  },
+  "Mix_SetSoundFonts": { // int (const char *paths);
+    "parameters": ["pointer"],
+    "result": "i32",
+  },
+  "Mix_GetSoundFonts": { // const char* (void);
+    "parameters": [],
+    "result": "pointer",
+  },
+  "Mix_EachSoundFont": { // int (int (*function)(const char*, void*), void *data);
+    "parameters": ["pointer", "pointer"],
+    "result": "i32",
+  },
+  "Mix_GetChunk": { // Mix_Chunk * (int channel);
+    "parameters": ["i32"],
+    "result": "pointer",
+  },
+  "Mix_CloseAudio": { // void (void);
+    "parameters": [],
+    "result": "void",
+  },
+  "Mix_RegisterEffect": { // int (int chan, Mix_EffectFunc_t f, Mix_EffectDone_t d, void *arg);
+    "parameters": ["i32", "pointer", "pointer", "pointer"],
+    "result": "i32",
+  },
+  "Mix_UnregisterEffect": { // int (int channel, Mix_EffectFunc_t f);
+    "parameters": ["i32", "pointer"],
+    "result": "i32",
+  },
+  "Mix_UnregisterAllEffects": { // int (int channel);
+    "parameters": ["i32"],
+    "result": "i32",
+  },
+});
+
+// typedef void (*Mix_EffectFunc_t)(int chan, void *stream, int len, void *udata);
+type MixEffectFunc = (channel: number, stream: Deno.UnsafePointer, length: number, userdata: Deno.UnsafePointer) => void;
+// typedef void (*Mix_EffectDone_t)(int chan, void *udata);
+type MixEffectDone = (channel: number, userdata: Deno.UnsafePointer) => void;
+
 enum SDL_InitFlag {
   SDL_INIT_TIMER = 0x00000001,
   SDL_INIT_AUDIO = 0x00000010,
@@ -387,9 +663,7 @@ function init() {
   context_alive = true;
   const result = sdl2.symbols.SDL_Init(0);
   if (result !== 0) {
-    const errPtr = sdl2.symbols.SDL_GetError();
-    const view = new Deno.UnsafePointerView(errPtr);
-    throw new Error(`SDL_Init failed: ${view.getCString()}`);
+    throwSDLError("SDL_Init failed");
   }
 
   const platform = sdl2.symbols.SDL_GetPlatform();
@@ -400,55 +674,68 @@ function init() {
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000001); // FIXME: Flag is wrong?
     if (result !== 0) {
-      const errPtr = sdl2.symbols.SDL_GetError();
-      const view = new Deno.UnsafePointerView(errPtr);
-      throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
+      throwSDLError("SDL_InitSubSystem failed")
     }
   }
   // SDL_INIT_VIDEO
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000010); // FIXME: Flag is wrong?
     if (result !== 0) {
-      const errPtr = sdl2.symbols.SDL_GetError();
-      const view = new Deno.UnsafePointerView(errPtr);
-      throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
+      throwSDLError("SDL_InitSubSystem failed")
     }
   }
   // SDL_INIT_GAMECONTROLLER
   {
     const result = sdl2.symbols.SDL_InitSubSystem(SDL_InitFlag.SDL_INIT_GAMECONTROLLER | SDL_InitFlag.SDL_INIT_HAPTIC);
     if (result !== 0) {
-      const errPtr = sdl2.symbols.SDL_GetError();
-      const view = new Deno.UnsafePointerView(errPtr);
-      throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
+      throwSDLError("SDL_InitSubSystem failed")
     }
   }
   // SDL_INIT_IMAGE
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000004);
     if (result !== 0) {
-      const errPtr = sdl2.symbols.SDL_GetError();
-      const view = new Deno.UnsafePointerView(errPtr);
-      throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
+      throwSDLError("SDL_InitSubSystem failed")
     }
   }
   // IMG_Init
   {
     // TIF = 4, WEBP = 8
-    sdl2Image.symbols.IMG_Init(1 | 2); // png and jpg
+    const result = sdl2Image.symbols.IMG_Init(1 | 2); // png and jpg
+    if (result === 0) {
+      throwSDLError("IMG_Init failed");
+    }
   }
   // SDL_INIT_TTF
   {
     const result = sdl2.symbols.SDL_InitSubSystem(0x00000100);
     if (result !== 0) {
-      const errPtr = sdl2.symbols.SDL_GetError();
-      const view = new Deno.UnsafePointerView(errPtr);
-      throw new Error(`SDL_InitSubSystem failed: ${view.getCString()}`);
+      throwSDLError("SDL_InitSubSystem failed");
     }
   }
   // TTF_Init
   {
-    sdl2Font.symbols.TTF_Init();
+    const result = sdl2Font.symbols.TTF_Init();
+    if (result !== 0) {
+      throwSDLError("TTF_Init failed");
+    }
+  }
+  // Mix_Init
+  {
+    const result = sdl2.symbols.SDL_InitSubSystem(SDL_InitFlag.SDL_INIT_AUDIO);
+    if (result !== 0) {
+      throwSDLError("SDL_InitSubSystem failed");
+    }
+  }
+  {
+    let result = sdl2Mixer.symbols.Mix_Init(Mix_InitFlag.MP3 | Mix_InitFlag.OGG);
+    if (result === 0) {
+      throwSDLError("Mix_Init failed");
+    }
+    result = sdl2Mixer.symbols.Mix_OpenAudio(22050, Mix_Defaults.Format, 2, 4096);
+    if (result !== 0) {
+      throwSDLError("Mix_OpenAudio failed");
+    }
   }
 }
 
@@ -533,10 +820,10 @@ function asCString(str: string): Uint8Array {
   return Deno.core.encode(`${str}\0`);
 }
 
-function throwSDLError(): never {
+function throwSDLError(prefix = "SDL Error"): never {
   const error = sdl2.symbols.SDL_GetError();
   const view = new Deno.UnsafePointerView(error);
-  throw new Error(`SDL Error: ${view.getCString()}`);
+  throw new Error(`${prefix}: ${view.getCString()}`);
 }
 
 interface TexturePreviousRenderState {
