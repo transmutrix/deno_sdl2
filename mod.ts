@@ -1338,12 +1338,18 @@ interface KeyboardEvent {
   type: EventType.KeyDown | EventType.KeyUp;
   timestamp: number;
   windowID: number;
-  state: number;
+  state: boolean;
   repeat: number;
   keysym: {
     scancode: number;
     sym: number;
   }
+}
+
+export enum MouseButton {
+  Left = 0x01,
+  Middle = 0x02,
+  Right = 0x03
 }
 
 const SDL_MouseMotionEvent = new Struct({
@@ -1377,8 +1383,8 @@ const SDL_MouseButtonEvent = new Struct({
   which: u32,
   button: u8,
   state: u8,
+  clicks: u8,
   padding1: u8,
-  padding2: u8,
   x: i32,
   y: i32,
 });
@@ -1389,7 +1395,8 @@ interface MouseButtonEvent {
   windowID: number;
   which: number;
   button: number;
-  state: number;
+  state: boolean;
+  clicks: number;
   x: number;
   y: number;
 }
@@ -1497,7 +1504,7 @@ interface AppDidEnterForegroundEvent {
   type: EventType.AppDidEnterForeground;
 }
 
-type Event = DrawEvent
+export type Event = DrawEvent
   | QuitEvent
   | WindowEvent
   | KeyboardEvent
