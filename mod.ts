@@ -2680,7 +2680,6 @@ export enum KeyMod {
   Shift = LShift | RShift,
   Alt = LAlt | RAlt,
   Gui = LGui | RGui,
-  Reserved = Scroll /* This is for source-level compatibility with SDL 2.0.0. */
 }
 
 // TODO: Audio effects once ffi supports callbacks.
@@ -2900,26 +2899,53 @@ export class Sound {
     sdl2Mixer.symbols.Mix_Volume(channel ?? -1, Math.floor(f));
   }
 
-  /*
-  TODO
+  /**
+   * Set the volume of the left and right sides of a given playback channel.
+   * **NOTE: Submitting left and right of 1 will unregister the effect from the channel.**
+   * @param channel Which channel to pan.
+   * @param left The volume factor of the left ear channel. Range [0, 1]
+   * @param right The volume factor of the right ear channel. Range [0, 1]
+   */
+  static setPanning(channel: number, left: number, right: number) {
+    left = Math.floor(Math.max(0, Math.min(1, left)) * 255);
+    right = Math.floor(Math.max(0, Math.min(1, right)) * 255);
+    const ret = sdl2Mixer.symbols.Mix_SetPanning(channel, left, right);
+    if (!ret) {
+      throwSDLError(); // TODO: this probably shouldn't explode. Maybe warn instead.
+    }
+  }
 
-  "Mix_SetPanning": { // int SDLCALL Mix_SetPanning(int channel, Uint8 left, Uint8 right);
-    "parameters": ["i32", "u8", "u8"],
-    "result": "i32",
-  },
-  "Mix_SetPosition": { // int SDLCALL Mix_SetPosition(int channel, Sint16 angle, Uint8 distance);
-    "parameters": ["i32", "i16", "u8"],
-    "result": "i32",
-  },
-  "Mix_SetDistance": { // int SDLCALL Mix_SetDistance(int channel, Uint8 distance);
-    "parameters": ["i32", "u8"],
-    "result": "i32",
-  },
-  "Mix_SetReverseStereo": { // (int channel, int flip);
-    "parameters": ["i32", "i32"],
-    "result": "i32",
-  },
-  */
+  /**
+   * Set the distance from the listener of a given channel.
+   * This will attenuate the sound such that it is at full volume at 0, and quiet but audible at 1.
+   * **NOTE: Using a distance of zero will unregister the effect from the channel.**
+   * @param channel Which channel to update.
+   * @param distance Ranges from 0 to 1, near to far.
+   */
+   static setDistance(channel: number, distance: number) {
+    distance = Math.floor(Math.max(0, Math.min(1, distance)) * 255);
+    const ret = sdl2Mixer.symbols.Mix_SetDistance(channel, distance);
+    if (!ret) {
+      throwSDLError(); // TODO: this probably shouldn't explode. Maybe warn instead.
+    }
+  }
+
+  /**
+   * Set the angle and distance from the listener of a given channel.
+   * This mixes the behavior of Sound.setPanning and Sound.setDistance.
+   * **NOTE: Submitting radians and distance of zero will unregister the effect from the channel.**
+   * @param channel Which channel to update.
+   * @param radians Goes clockwise beginning in front of the listener (center panned).
+   * @param distance Ranges from 0 to 1, near to far. This is the same as Sound.setDistance.
+   */
+  static setSpatial(channel: number, radians: number, distance: number) {
+    radians = Math.floor(radians / Math.PI * 180);
+    distance = Math.floor(Math.max(0, Math.min(1, distance)) * 255);
+    const ret = sdl2Mixer.symbols.Mix_SetPosition(channel, radians, distance);
+    if (!ret) {
+      throwSDLError(); // TODO: this probably shouldn't explode. Maybe warn instead.
+    }
+  }
 
   /**
    * Set the total number of playback channels for Sounds.
