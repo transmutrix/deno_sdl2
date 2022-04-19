@@ -614,11 +614,6 @@ const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
   },
 });
 
-// typedef void (*Mix_EffectFunc_t)(int chan, void *stream, int len, void *udata);
-type MixEffectFunc = (channel: number, stream: Deno.UnsafePointer, length: number, userdata: Deno.UnsafePointer) => void;
-// typedef void (*Mix_EffectDone_t)(int chan, void *udata);
-type MixEffectDone = (channel: number, userdata: Deno.UnsafePointer) => void;
-
 const enum Mix_InitFlag {
   FLAC = 0x00000001,
   MOD  = 0x00000002,
@@ -2688,6 +2683,12 @@ export enum KeyMod {
   Reserved = Scroll /* This is for source-level compatibility with SDL 2.0.0. */
 }
 
+// TODO: Audio effects once ffi supports callbacks.
+
+// typedef void (*Mix_EffectFunc_t)(int chan, void *stream, int len, void *udata);
+// type MixEffectFunc = (channel: number, stream: Deno.UnsafePointer, length: number, userdata: Deno.UnsafePointer) => void;
+// typedef void (*Mix_EffectDone_t)(int chan, void *udata);
+// type MixEffectDone = (channel: number, userdata: Deno.UnsafePointer) => void;
 
 // export class PlayingSound {
 //   private _finished = false;
@@ -3002,6 +3003,7 @@ export class Music {
 
 /*
 TODO:
+  - Documentation.
   - Audio finished callbacks. See https://github.com/denoland/deno/pull/13162
     Looks like @littledivy has been working on synchronous callbacks from foreign funcs.
     Without the callbacks, we can _maybe_ do something cheaty with polling. Not sure
