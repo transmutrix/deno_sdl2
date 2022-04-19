@@ -363,7 +363,6 @@ const sdl2Font = Deno.dlopen(getLibraryPath("SDL2_ttf"), {
   },
 });
 
-// XXX
 const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
   "Mix_Init": {
     "parameters": ["i32"], // Mix_InitFlags OR'd
@@ -379,10 +378,6 @@ const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
   },
   // "Mix_OpenAudioDevice": { // (int frequency, Uint16 format, int channels, int chunksize, const char* device, int allowed_changes);
   //   "parameters": ["i32", "u16", "i32", "i32", "pointer", "i32"],
-  //   "result": "i32",
-  // },
-  // "Mix_AllocateChannels": { // (int numchans);
-  //   "parameters": ["i32"],
   //   "result": "i32",
   // },
   // #define Mix_LoadWAV(file)   Mix_LoadWAV_RW(SDL_RWFromFile(file, "rb"), 1)
@@ -2802,6 +2797,7 @@ export class Sound {
     if (ch < 0) {
       throwSDLError();
     }
+    sdl2Mixer.symbols.Mix_UnregisterAllEffects(ch);
     return ch;
   }
 
@@ -2823,6 +2819,7 @@ export class Sound {
     if (ch < 0) {
       throwSDLError();
     }
+    sdl2Mixer.symbols.Mix_UnregisterAllEffects(ch);
     return ch;
   }
 
@@ -2877,6 +2874,7 @@ export class Sound {
    */
   static stop(channel?: number) {
     sdl2Mixer.symbols.Mix_HaltChannel(channel ?? -1);
+    sdl2Mixer.symbols.Mix_UnregisterAllEffects(channel ?? -1);
   }
 
   /**
