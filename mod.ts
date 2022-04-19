@@ -7,7 +7,6 @@ import {
   u32,
   u8,
   pointer,
-  // cstring
 } from "https://deno.land/x/byte_type@0.1.7/ffi.ts";
 
 let DENO_SDL2_PATH: string | undefined;
@@ -592,6 +591,10 @@ const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
   "Mix_GetChunk": { // Mix_Chunk * (int channel);
     "parameters": ["i32"],
     "result": "pointer",
+  },
+  "Mix_AllocateChannels": {
+    "parameters": ["i32"],
+    "result": "i32",
   },
   "Mix_CloseAudio": { // void (void);
     "parameters": [],
@@ -2686,18 +2689,14 @@ export enum KeyMod {
 }
 
 
-// SDL_Mixer
-
-const Mix_Chunk = new Struct({
-  allocated: i32,
-  abuf: pointer,
-  alen: u32,
-  volume: u8, // Per-sample volume, 0-128
-});
-
-// Note: Mix_Music is just an opaque pointer.
-
-// XXX
+// export class PlayingSound {
+//   private _finished = false;
+//   constructor(
+//     private sound: Sound,
+//     private channel: number,
+//   ) {}
+//   get finished() { return this._finished }
+// }
 
 export class Sound {
   private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
@@ -2707,21 +2706,47 @@ export class Sound {
 
   [_raw]: Deno.UnsafePointer;
 
+  // TODO: track playing instances in an array.
+  // TODO: allow the user to supply an onFinished callback per-play.
+
   constructor(raw: Deno.UnsafePointer) {
     this[_raw] = raw;
     Sound._registry.register(this, raw);
   }
 
-  play(channel?: number, loops?: number, seconds?: number) {
-    const ret = sdl2Mixer.symbols.Mix_PlayChannelTimed(
+  play(channel?: number, loops?: number, playFor?: number) {
+    const ch = sdl2Mixer.symbols.Mix_PlayChannelTimed(
       channel ?? -1,
       this[_raw],
       loops ?? 0,
-      (seconds ? Math.floor(seconds * 1000) : -1));
-    if (ret < 0) {
+      (playFor ? Math.floor(playFor * 1000) : -1));
+    if (ch < 0) {
       throwSDLError();
     }
-    return ret;
+    return ch;
+  }
+
+  fadeIn(channel?: number, loops?: number, seconds?: number, playFor?: number) {
+    const ch = sdl2Mixer.symbols.Mix_FadeInChannelTimed(
+      channel ?? -1,
+      this[_raw],
+      loops ?? 0,
+      seconds ?? 1,
+      (playFor ? Math.floor(playFor * 1000) : -1));
+    if (ch < 0) {
+      throwSDLError();
+    }
+    return ch;
+  }
+
+  get volume() {
+    const value = sdl2Mixer.symbols.Mix_VolumeChunk(this[_raw], -1);
+    return value / 128;
+  }
+
+  set volume(f: number) {
+    f = Math.max(0, Math.min(1, f));
+    sdl2Mixer.symbols.Mix_VolumeChunk(this[_raw], Math.floor(f * 128));
   }
 
   static fromFile(filename: string) {
@@ -2730,6 +2755,155 @@ export class Sound {
       throwSDLError("Mix_LoadWAV_RW");
     }
     return new Sound(raw);
+  }
+
+  static pause(channel?: number) {
+    sdl2Mixer.symbols.Mix_Pause(channel ?? -1);
+  }
+
+  static resume(channel?: number) {
+    sdl2Mixer.symbols.Mix_Resume(channel ?? -1);
+  }
+
+  static stop(channel?: number) {
+    sdl2Mixer.symbols.Mix_HaltChannel(channel ?? -1);
+  }
+
+  static stopAfter(channel: number | undefined, seconds: number) {
+    sdl2Mixer.symbols.Mix_ExpireChannel(channel ?? -1, Math.floor(seconds * 1000));
+  }
+
+  static fadeOut(channel?: number, seconds?: number) {
+    sdl2Mixer.symbols.Mix_FadeOutChannel(channel ?? -1, Math.floor((seconds ?? 1) * 1000));
+  }
+
+  static isPlaying(channel: number) {
+    return Boolean(sdl2Mixer.symbols.Mix_Playing(channel));
+  }
+
+  static numPlaying() {
+    return sdl2Mixer.symbols.Mix_Playing(-1);
+  }
+
+  static isPaused(channel: number) {
+    return Boolean(sdl2Mixer.symbols.Mix_Paused(channel));
+  }
+
+  static numPaused() {
+    return sdl2Mixer.symbols.Mix_Paused(-1);
+  }
+
+  static isFading(channel: number) {
+    if (channel < 0) {
+      throw new Error("invalid argument");
+    }
+    const state = sdl2Mixer.symbols.Mix_FadingChannel(channel);
+    switch(state) {
+      case MixFadeType.In: return 'in';
+      case MixFadeType.Out: return 'out';
+      default: return undefined;
+    }
+  }
+
+  static getVolume(channel?: number) {
+    return sdl2Mixer.symbols.Mix_Volume(channel ?? -1, -1) * 128;
+  }
+
+  static setVolume(channel: number|undefined, f: number) {
+    f = Math.max(0, Math.min(1, f));
+    sdl2Mixer.symbols.Mix_Volume(channel ?? -1, Math.floor(f));
+  }
+
+  static allocateChannels(count: number) {
+    sdl2Mixer.symbols.Mix_AllocateChannels(count);
+  }
+
+  // channel groups
+  private static _reservedChannels = 0;
+
+  static get reservedChannels() {
+    return this._reservedChannels;
+  }
+
+  static set reservedChannels(count: number) {
+    this._reservedChannels = sdl2Mixer.symbols.Mix_ReserveChannels(count);
+  }
+
+  private static _nextGroupTag = 0;
+  private static _groupTags = new Map<string, number>([['default', -1]]);
+
+  private static _getGroupTag(group: string) {
+    const existing = this._groupTags.get(group);
+    if (existing) return existing;
+    this._groupTags.set(group, this._nextGroupTag);
+    return this._nextGroupTag++;
+  }
+
+  static groupChannel(group: string, channel: number) {
+    const tag = this._getGroupTag(group);
+    const succeeded = Boolean(sdl2Mixer.symbols.Mix_GroupChannel(channel, tag));
+    if (succeeded) {
+      log(`Sound: added channel ${channel} to group "${group}"`);
+    }
+    return succeeded;
+  }
+
+  static groupChannels(group: string, channels: number[]) {
+    const tag = this._getGroupTag(group);
+    const added: number[] = [];
+    for (const channel of channels) {
+      const succeeded = Boolean(sdl2Mixer.symbols.Mix_GroupChannel(channel, tag));
+      if (succeeded) added.push(channel);
+    }
+    log(`Sound: added channels [${added}] to group "${group}"`);
+    return added;
+  }
+
+  static groupChannelRange(group: string, first: number, last: number) {
+    if (last <= first) {
+      throw new Error("invalid range");
+    }
+    const tag = this._getGroupTag(group);
+    const added: number[] = [];
+    for (let i = first; first <= last; ++i) {
+      const succeeded = Boolean(sdl2Mixer.symbols.Mix_GroupChannel(i, tag));
+      if (succeeded) added.push(i);
+    }
+    log(`Sound: added channels [${added}] to group "${group}"`);
+    return added;
+  }
+
+  static groupCount(group: string) {
+    const tag = this._getGroupTag(group);
+    return sdl2Mixer.symbols.Mix_GroupCount(tag);
+  }
+
+  static groupGetChannel(group: string, fullPolicy?: 'oldest'|'newest') {
+    const tag = this._getGroupTag(group);
+    let channel = sdl2Mixer.symbols.Mix_GroupAvailable(tag);
+    if (channel === -1) {
+      switch (fullPolicy) {
+        case 'oldest': channel = sdl2Mixer.symbols.Mix_GroupOldest(tag); break;
+        case 'newest': channel = sdl2Mixer.symbols.Mix_GroupNewer(tag); break;
+      }
+    }
+    return (channel === -1)? undefined : channel;
+  }
+
+  static groupFadeOut(group: string, seconds = 2) {
+    const tag = this._getGroupTag(group);
+    if (tag < 0) {
+      throw new Error("invalid argument! If you want to fade out all channels, use Sound.fadeOut(-1, ...)");
+    }
+    sdl2Mixer.symbols.Mix_FadeOutGroup(tag, Math.floor(seconds * 1000));
+  }
+
+  static groupStop(group: string) {
+    const tag = this._getGroupTag(group);
+    if (tag < 0) {
+      throw new Error("invalid argument! If you want to fade out all channels, use Sound.stop(-1, ...)");
+    }
+    sdl2Mixer.symbols.Mix_HaltGroup(tag);
   }
 }
 
@@ -2746,12 +2920,25 @@ export class Music {
     Music._registry.register(this, raw);
   }
 
-  play(loops?: number) {
-    const ret = sdl2Mixer.symbols.Mix_PlayMusic(this[_raw], loops ?? -1);
+  play(loops = -1) {
+    const ret = sdl2Mixer.symbols.Mix_PlayMusic(this[_raw], loops);
     if (ret < 0) {
       throwSDLError();
     }
-    // TODO: register finished callback?
+  }
+
+  fadeIn(loops = -1, fadeSeconds = 2) {
+    const ret = sdl2Mixer.symbols.Mix_FadeInMusic(this[_raw], loops, fadeSeconds * 1000);
+    if (ret < 0) {
+      throwSDLError();
+    }
+  }
+
+  fadeInAtPosition(loops: number, fadeSeconds: number, position: number) {
+    const ret = sdl2Mixer.symbols.Mix_FadeInMusicPos(this[_raw], loops, fadeSeconds * 1000, position);
+    if (ret < 0) {
+      throwSDLError();
+    }
   }
 
   static fromFile(filename: string) {
@@ -2761,16 +2948,68 @@ export class Music {
     }
     return new Music(raw);
   }
-}
 
-// TODO: Mixer channel groups and whatever.
+  static get volume() {
+    return sdl2Mixer.symbols.Mix_VolumeMusic(-1) / 128;
+  }
+
+  static set volume(f: number) {
+    f = Math.max(0, Math.min(1, f));
+    sdl2Mixer.symbols.Mix_VolumeMusic(Math.floor(f * 128));
+  }
+
+  static get paused() {
+    return sdl2Mixer.symbols.Mix_PausedMusic() === 1;
+  }
+
+  static set paused(paused: boolean) {
+    if (paused) {
+      sdl2Mixer.symbols.Mix_PauseMusic();
+    } else {
+      sdl2Mixer.symbols.Mix_ResumeMusic();
+    }
+  }
+
+  static rewind() {
+    sdl2Mixer.symbols.Mix_RewindMusic();
+  }
+
+  static stop() {
+    sdl2Mixer.symbols.Mix_HaltMusic();
+  }
+
+  static fadeOut(seconds: number) {
+    sdl2Mixer.symbols.Mix_FadeOutMusic(seconds * 1000);
+  }
+
+  static setPosition(seconds: number) {
+    sdl2Mixer.symbols.Mix_RewindMusic();
+    const ret = sdl2Mixer.symbols.Mix_SetMusicPosition(seconds);
+    if (ret < 0) {
+      throwSDLError("Can't set music position");
+    }
+  }
+
+  static get isFading() {
+    const state = sdl2Mixer.symbols.Mix_FadingMusic();
+    switch (state) {
+      case MixFadeType.In: return 'in';
+      case MixFadeType.Out: return 'out';
+      default: return undefined;
+    }
+  }
+}
 
 /*
 TODO:
+  - Audio finished callbacks. See https://github.com/denoland/deno/pull/13162
+    Looks like @littledivy has been working on synchronous callbacks from foreign funcs.
+    Without the callbacks, we can _maybe_ do something cheaty with polling. Not sure
+    if we can detect loops with much precision though. The cheaty fix would be
+    similar to something I did in Stencyl many years ago...
+  - Audio effects? Requires ffi callbacks.
+    - Mixer API reference: https://www.libsdl.org/projects/SDL_mixer/docs/SDL_mixer_75.html#SEC75
+    - FFI callbacks thread: https://github.com/denoland/deno/pull/13162
   - Flesh out more of the SDL_Event stuff.
-    - Minimize, maximize, gamepads etc.
-  - Audio stuff.
-    - SDL_Mixer at a minimum?
-    - Or are there better audio options for Deno already?
   - Input binding? Or leave that for another library?
 */
