@@ -2699,6 +2699,10 @@ export enum KeyMod {
 //   get finished() { return this._finished }
 // }
 
+/**
+ * Wraps all the Sound objects and operations from SDL_mixer.
+ * This includes channel and channel group operations.
+ */
 export class Sound {
   private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
     sdl2Mixer.symbols.Mix_FreeChunk(collected);
@@ -2710,11 +2714,18 @@ export class Sound {
   // TODO: track playing instances in an array.
   // TODO: allow the user to supply an onFinished callback per-play.
 
-  constructor(raw: Deno.UnsafePointer) {
+  private constructor(raw: Deno.UnsafePointer) {
     this[_raw] = raw;
     Sound._registry.register(this, raw);
   }
 
+  /**
+   * Play this Sound.
+   * @param channel Which channel to play on. undefined or -1 to look for a free one.
+   * @param loops 0+ to play n+1 times, undefined or -1 to play indefinitely.
+   * @param playFor How many seconds to play back the Sound, or -1 to play until loops run out.
+   * @returns The channel used for playback, or -1 if no free channel was found.
+   */
   play(channel?: number, loops?: number, playFor?: number) {
     const ch = sdl2Mixer.symbols.Mix_PlayChannelTimed(
       channel ?? -1,
@@ -2727,6 +2738,14 @@ export class Sound {
     return ch;
   }
 
+  /**
+   * Play this Sound and fade it in.
+   * @param channel Which channel to play on. undefined or -1 to look for a free one.
+   * @param loops 0+ to play n+1 times, undefined or -1 to play indefinitely.
+   * @param seconds How many seconds to fade in for, or undefined for one second.
+   * @param playFor How many seconds to play back the Sound, or -1 to play until loops run out.
+   * @returns The channel used for playback, or -1 if no free channel was found.
+   */
   fadeIn(channel?: number, loops?: number, seconds?: number, playFor?: number) {
     const ch = sdl2Mixer.symbols.Mix_FadeInChannelTimed(
       channel ?? -1,
@@ -2740,16 +2759,27 @@ export class Sound {
     return ch;
   }
 
+  /**
+   * The volume of this Sound. This is multiplied by the channel volume during playback.
+   */
   get volume() {
     const value = sdl2Mixer.symbols.Mix_VolumeChunk(this[_raw], -1);
     return value / 128;
   }
 
+  /**
+   * The volume of this Sound. This is multiplied by the channel volume during playback.
+  */
   set volume(f: number) {
     f = Math.max(0, Math.min(1, f));
     sdl2Mixer.symbols.Mix_VolumeChunk(this[_raw], Math.floor(f * 128));
   }
 
+  /**
+   * Load a Sound from a file. Supports Wav, Ogg, Mp3, and Mod.
+   * @param filename The relative path of the sound file.
+   * @returns The loaded Sound object.
+   */
   static fromFile(filename: string) {
     const raw = sdl2Mixer.symbols.Mix_LoadWAV_RW(sdl2.symbols.SDL_RWFromFile(asCString(filename), asCString("rb")), 1);
     if (raw.valueOf() === BigInt(0)) {
@@ -2758,42 +2788,87 @@ export class Sound {
     return new Sound(raw);
   }
 
+  /**
+   * Pause one or all playback channels.
+   * @param channel Which channel to pause, undefined or -1 to pause them all.
+   */
   static pause(channel?: number) {
     sdl2Mixer.symbols.Mix_Pause(channel ?? -1);
   }
 
+  /**
+   * Resume one or all playback channels.
+   * @param channel Which channel to resume, undefined or -1 to resume them all.
+   */
   static resume(channel?: number) {
     sdl2Mixer.symbols.Mix_Resume(channel ?? -1);
   }
 
+  /**
+   * Stop one or all playback channels.
+   * @param channel Which channel to stop, undefined or -1 to stop them all.
+   */
   static stop(channel?: number) {
     sdl2Mixer.symbols.Mix_HaltChannel(channel ?? -1);
   }
 
+  /**
+   * Stop one or all playback channels after a delay.
+   * @param channel Which channel to stop, undefined or -1 to stop them all.
+   * @param seconds The delay to stop after, in seconds.
+   */
   static stopAfter(channel: number | undefined, seconds: number) {
     sdl2Mixer.symbols.Mix_ExpireChannel(channel ?? -1, Math.floor(seconds * 1000));
   }
 
+  /**
+   * Stop one or all playback channels after fading out.
+   * @param channel Which channel to stop, undefined or -1 to stop them all.
+   * @param seconds How long to fade out for, in seconds.
+   */
   static fadeOut(channel?: number, seconds?: number) {
     sdl2Mixer.symbols.Mix_FadeOutChannel(channel ?? -1, Math.floor((seconds ?? 1) * 1000));
   }
 
+  /**
+   * Check if a given channel has a Sound playing on it.
+   * @param channel Which channel to check, undefined or -1 to check any channel.
+   * @returns true if a Sound is playing on the given channel.
+   */
   static isPlaying(channel: number) {
     return Boolean(sdl2Mixer.symbols.Mix_Playing(channel));
   }
 
+  /**
+   * Count how many channels have Sounds playing on them.
+   * @returns The count of active channels.
+   */
   static numPlaying() {
     return sdl2Mixer.symbols.Mix_Playing(-1);
   }
 
+  /**
+   * Check if a given channel is paused.
+   * @param channel Which channel to check, undefined or -1 to check any channel.
+   * @returns true if a channel is paused.
+   */
   static isPaused(channel: number) {
     return Boolean(sdl2Mixer.symbols.Mix_Paused(channel));
   }
 
+  /**
+   * Count how many channels are paused.
+   * @returns The count of paused channels.
+   */
   static numPaused() {
     return sdl2Mixer.symbols.Mix_Paused(-1);
   }
 
+  /**
+   * Check the fading state of a given channel is fading.
+   * @param channel Which channel to check.
+   * @returns 'in', 'out', or undefined.
+   */
   static isFading(channel: number) {
     if (channel < 0) {
       throw new Error("invalid argument");
@@ -2806,10 +2881,20 @@ export class Sound {
     }
   }
 
+  /**
+   * Get the volume of a given channel, or the average volume across all channels.
+   * @param channel Which channel to check, undefined or -1 to get the average across all channels.
+   * @returns The volume, in the range [0, 1].
+   */
   static getVolume(channel?: number) {
     return sdl2Mixer.symbols.Mix_Volume(channel ?? -1, -1) * 128;
   }
 
+  /**
+   * Set the volume of a given channel, or the volume of all channels.
+   * @param channel Which channel to set, undefined or -1 to set the volume of all channels.
+   * @param f The volume to set, in range [0, 1].
+   */
   static setVolume(channel: number|undefined, f: number) {
     f = Math.max(0, Math.min(1, f));
     sdl2Mixer.symbols.Mix_Volume(channel ?? -1, Math.floor(f));
@@ -2836,6 +2921,11 @@ export class Sound {
   },
   */
 
+  /**
+   * Set the total number of playback channels for Sounds.
+   * @param count How many playback channels to allocate (see:
+   * https://www.libsdl.org/projects/SDL_mixer/docs/SDL_mixer.html#SEC26).
+   */
   static allocateChannels(count: number) {
     sdl2Mixer.symbols.Mix_AllocateChannels(count);
   }
@@ -2843,10 +2933,20 @@ export class Sound {
   // channel groups
   private static _reservedChannels = 0;
 
+  /**
+   * How many channels in the 'default' group to prevent from being selected
+   * for playback when -1 is used. Will reserve channels in the range [0,N-1]
+   * for explicit playback only.
+   */
   static get reservedChannels() {
     return this._reservedChannels;
   }
 
+  /**
+   * How many channels in the 'default' group to prevent from being selected
+   * for playback when -1 is used. Will reserve channels in the range [0,N-1]
+   * for explicit playback only.
+   */
   static set reservedChannels(count: number) {
     this._reservedChannels = sdl2Mixer.symbols.Mix_ReserveChannels(count);
   }
@@ -2861,6 +2961,13 @@ export class Sound {
     return this._nextGroupTag++;
   }
 
+  /**
+   * Add a channel to a channel group. If the group does not exist,
+   * it will be created.
+   * @param group The name of the group (groups are created on-demand).
+   * @param channel Which channel to add to the group.
+   * @returns true if the channel was grouped successfully.
+   */
   static groupChannel(group: string, channel: number) {
     const tag = this._getGroupTag(group);
     const succeeded = Boolean(sdl2Mixer.symbols.Mix_GroupChannel(channel, tag));
@@ -2870,6 +2977,13 @@ export class Sound {
     return succeeded;
   }
 
+  /**
+   * Add several channels to a channel group. If the group does not exist,
+   * it will be created.
+   * @param group The name of the group (groups are created on-demand).
+   * @param channels An array of channel indices.
+   * @returns an array of the channels successfully added to the group.
+   */
   static groupChannels(group: string, channels: number[]) {
     const tag = this._getGroupTag(group);
     const added: number[] = [];
@@ -2881,6 +2995,13 @@ export class Sound {
     return added;
   }
 
+  /**
+   * Add a contiguous range of channels to a group.
+   * @param group The name of the group (groups are created on-demand).
+   * @param first The first channel in the range.
+   * @param last The last channel in the range.
+   * @returns an array of the channels successfully added to the group.
+   */
   static groupChannelRange(group: string, first: number, last: number) {
     if (last <= first) {
       throw new Error("invalid range");
@@ -2895,12 +3016,23 @@ export class Sound {
     return added;
   }
 
+  /**
+   * Count the number of channels in a given group.
+   * @param group The name of the group (groups are created on-demand).
+   * @returns the number of channels in the group.
+   */
   static groupCount(group: string) {
     const tag = this._getGroupTag(group);
     return sdl2Mixer.symbols.Mix_GroupCount(tag);
   }
 
-  static groupGetChannel(group: string, fullPolicy?: 'oldest'|'newest') {
+  /**
+   * Get a free channel from a given group for playback.
+   * @param group The name of the group (groups are created on-demand).
+   * @param fullPolicy What to do if all channels in the group are used. 'oldest': Find the channel that has been playing the longest. 'newest': Find the channel which most recently started playback.
+   * @returns the channel chosen, or undefined.
+   */
+  static groupGetChannel(group: string, fullPolicy?: 'oldest' | 'newest') {
     const tag = this._getGroupTag(group);
     let channel = sdl2Mixer.symbols.Mix_GroupAvailable(tag);
     if (channel === -1) {
@@ -2909,9 +3041,14 @@ export class Sound {
         case 'newest': channel = sdl2Mixer.symbols.Mix_GroupNewer(tag); break;
       }
     }
-    return (channel === -1)? undefined : channel;
+    return (channel === -1) ? undefined : channel;
   }
 
+  /**
+   * Fade out all playing channels in a given group.
+   * @param group The name of the group (groups are created on-demand).
+   * @param seconds How many seconds to fade out for.
+   */
   static groupFadeOut(group: string, seconds = 2) {
     const tag = this._getGroupTag(group);
     if (tag < 0) {
@@ -2920,6 +3057,10 @@ export class Sound {
     sdl2Mixer.symbols.Mix_FadeOutGroup(tag, Math.floor(seconds * 1000));
   }
 
+  /**
+   * Stop all playing channels in a given group.
+   * @param group The name of the group (groups are created on-demand).
+   */
   static groupStop(group: string) {
     const tag = this._getGroupTag(group);
     if (tag < 0) {
