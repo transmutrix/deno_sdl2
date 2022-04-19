@@ -2815,6 +2815,27 @@ export class Sound {
     sdl2Mixer.symbols.Mix_Volume(channel ?? -1, Math.floor(f));
   }
 
+  /*
+  TODO
+
+  "Mix_SetPanning": { // int SDLCALL Mix_SetPanning(int channel, Uint8 left, Uint8 right);
+    "parameters": ["i32", "u8", "u8"],
+    "result": "i32",
+  },
+  "Mix_SetPosition": { // int SDLCALL Mix_SetPosition(int channel, Sint16 angle, Uint8 distance);
+    "parameters": ["i32", "i16", "u8"],
+    "result": "i32",
+  },
+  "Mix_SetDistance": { // int SDLCALL Mix_SetDistance(int channel, Uint8 distance);
+    "parameters": ["i32", "u8"],
+    "result": "i32",
+  },
+  "Mix_SetReverseStereo": { // (int channel, int flip);
+    "parameters": ["i32", "i32"],
+    "result": "i32",
+  },
+  */
+
   static allocateChannels(count: number) {
     sdl2Mixer.symbols.Mix_AllocateChannels(count);
   }
@@ -2908,6 +2929,9 @@ export class Sound {
   }
 }
 
+/**
+ * Wraps all the Music objects and operations from SDL_mixer.
+ */
 export class Music {
   private static _registry = new FinalizationRegistry((collected: Deno.UnsafePointer) => {
     sdl2Mixer.symbols.Mix_FreeMusic(collected);
@@ -2916,11 +2940,15 @@ export class Music {
 
   [_raw]: Deno.UnsafePointer;
 
-  constructor(raw: Deno.UnsafePointer) {
+  private constructor(raw: Deno.UnsafePointer) {
     this[_raw] = raw;
     Music._registry.register(this, raw);
   }
 
+  /**
+   * Play this Music object. If another Music is being played, it will stop.
+   * @param loops 0+ to play n+1 times, -1 to loop indefinitely.
+   */
   play(loops = -1) {
     const ret = sdl2Mixer.symbols.Mix_PlayMusic(this[_raw], loops);
     if (ret < 0) {
@@ -2928,6 +2956,12 @@ export class Music {
     }
   }
 
+  /**
+   * Play this Music, fading in over fadeSeconds seconds.
+   * If another Music is being played, it will stop.
+   * @param loops 0+ to play n+1 times, -1 to loop indefinitely.
+   * @param fadeSeconds How long to fade in for.
+   */
   fadeIn(loops = -1, fadeSeconds = 2) {
     const ret = sdl2Mixer.symbols.Mix_FadeInMusic(this[_raw], loops, fadeSeconds * 1000);
     if (ret < 0) {
@@ -2935,13 +2969,26 @@ export class Music {
     }
   }
 
+  /**
+   * Play this Music, fading in over fadeSeconds seconds, and starting at position.
+   * If another Music is being played, it will stop.
+   * @param loops 0+ to play n+1 times, -1 to loop indefinitely.
+   * @param fadeSeconds How long to fade in for.
+   * @param position Where to start playback, in seconds.
+   */
   fadeInAtPosition(loops: number, fadeSeconds: number, position: number) {
+    sdl2Mixer.symbols.Mix_RewindMusic();
     const ret = sdl2Mixer.symbols.Mix_FadeInMusicPos(this[_raw], loops, fadeSeconds * 1000, position);
     if (ret < 0) {
       throwSDLError();
     }
   }
 
+  /**
+   * Load a Music object from a file. Supports Mp3, Ogg, Mod.
+   * @param filename The relative path to the music file.
+   * @returns The created Music object.
+   */
   static fromFile(filename: string) {
     const raw = sdl2Mixer.symbols.Mix_LoadMUS(asCString(filename));
     if (raw.valueOf() === BigInt(0)) {
@@ -2950,19 +2997,31 @@ export class Music {
     return new Music(raw);
   }
 
+  /**
+   * The global Music volume, which is in range [0, 1]
+   */
   static get volume() {
     return sdl2Mixer.symbols.Mix_VolumeMusic(-1) / 128;
   }
 
+  /**
+   * The global Music volume, which is in range [0, 1]
+   */
   static set volume(f: number) {
     f = Math.max(0, Math.min(1, f));
     sdl2Mixer.symbols.Mix_VolumeMusic(Math.floor(f * 128));
   }
 
+  /**
+   * Global Music pause state.
+   */
   static get paused() {
     return sdl2Mixer.symbols.Mix_PausedMusic() === 1;
   }
 
+  /**
+   * Global Music pause state.
+   */
   static set paused(paused: boolean) {
     if (paused) {
       sdl2Mixer.symbols.Mix_PauseMusic();
@@ -2971,18 +3030,33 @@ export class Music {
     }
   }
 
+  /**
+   * Rewind the playing Music to the start.
+   */
   static rewind() {
     sdl2Mixer.symbols.Mix_RewindMusic();
   }
 
+  /**
+   * Stop any currently playing Music.
+   */
   static stop() {
     sdl2Mixer.symbols.Mix_HaltMusic();
   }
 
+  /**
+   * Fade out any currently playing Music.
+   * @param seconds How long to fade out for.
+   */
   static fadeOut(seconds: number) {
     sdl2Mixer.symbols.Mix_FadeOutMusic(seconds * 1000);
   }
 
+  /**
+   * Set the playback position of the currently playing Music, in seconds.
+   * Works a bit differently for MOD files (see: https://www.libsdl.org/projects/SDL_mixer/docs/SDL_mixer.html#SEC65)
+   * @param seconds Where to seek to.
+   */
   static setPosition(seconds: number) {
     sdl2Mixer.symbols.Mix_RewindMusic();
     const ret = sdl2Mixer.symbols.Mix_SetMusicPosition(seconds);
@@ -2991,7 +3065,10 @@ export class Music {
     }
   }
 
-  static get isFading() {
+  /**
+   * The global Music fading state. Either 'in', 'out', or undefined if no fade is happening.
+   */
+  static get fadeState() {
     const state = sdl2Mixer.symbols.Mix_FadingMusic();
     switch (state) {
       case MixFadeType.In: return 'in';
@@ -3003,6 +3080,7 @@ export class Music {
 
 /*
 TODO:
+  - Audio Panning, Position etc.
   - Documentation.
   - Audio finished callbacks. See https://github.com/denoland/deno/pull/13162
     Looks like @littledivy has been working on synchronous callbacks from foreign funcs.
