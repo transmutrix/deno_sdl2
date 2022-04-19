@@ -1315,6 +1315,9 @@ export class Texture {
     Texture._registry.register(this, raw);
   }
 
+  /**
+   * Get some basic information about this Texture.
+   */
   query(): TextureQuery {
     const format = new Uint32Array(1);
     const access = new Uint32Array(1);
@@ -1339,24 +1342,45 @@ export class Texture {
     };
   }
 
+  /**
+   * The width in pixels of the Texture.
+   */
   get width() {
     return this.query().w;
   }
 
+  /**
+   * The height in pixels of the Texture.
+   */
   get height() {
     return this.query().h;
   }
 
+  /**
+   * The dimensions of the Texture.
+   */
   get size() {
     const { w, h } = this.query();
     return { width: w, height: h };
   }
 
+  /**
+   * Get a Rect that describes the bounds of the texture.
+   * @param optionalTarget You can supply a Rect to copy the result into.
+   * @returns The computed bounds.
+   */
   toRect(optionalTarget?: Rect) {
     const q = this.query();
     return (optionalTarget ?? new Rect()).set(0, 0, q.w, q.h);
   }
 
+  /**
+   * Set the tint of the Texture.
+   * @param r [0, 255]
+   * @param g [0, 255]
+   * @param b [0, 255]
+   * @returns this
+   */
   setColorMod(r: number, g: number, b: number) {
     const ret = sdl2.symbols.SDL_SetTextureColorMod(
       this.raw,
@@ -1370,6 +1394,11 @@ export class Texture {
     return this;
   }
 
+  /**
+   * Set the opacity of the Texture.
+   * @param a [0, 255]
+   * @returns this
+   */
   setAlphaMod(a: number) {
     const ret = sdl2.symbols.SDL_SetTextureAlphaMod(this.raw, a);
     if (ret < 0) {
@@ -1378,6 +1407,11 @@ export class Texture {
     return this;
   }
 
+  /**
+   * Set the drawing BlendMode of the Texture.
+   * @param blendMode Which BlendMode to set.
+   * @returns this
+   */
   setBlendMode(blendMode: BlendMode) {
     const ret = sdl2.symbols.SDL_SetTextureBlendMode(this.raw, blendMode);
     if (ret < 0) {
@@ -1386,6 +1420,13 @@ export class Texture {
     return this;
   }
 
+  /**
+   * Update the pixels of the Texture with new ones.
+   * @param pixels The block of new pixels.
+   * @param pitch The pitch of the block of new pixels.
+   * @param rect The region of the Texture to copy pixels into.
+   * @returns this
+   */
   update(pixels: Uint8Array, pitch: number, rect?: Rect) {
     const ret = sdl2.symbols.SDL_UpdateTexture(
       this.raw,
@@ -1399,6 +1440,11 @@ export class Texture {
     return this;
   }
 
+  /**
+   * Set the upscaling filter of the Texture.
+   * @param mode Which filter to use.
+   * @returns this
+   */
   setScaleMode(mode: ScaleMode) {
     const ret = sdl2.symbols.SDL_SetTextureScaleMode(
       this.raw,
@@ -1574,12 +1620,17 @@ export class Surface {
     gcLog(`surface destroyed: ${collected.valueOf()}`);
   });
 
-  constructor(raw: Deno.UnsafePointer) {
+  private constructor(raw: Deno.UnsafePointer) {
     this[_raw] = raw;
     this.view = new Deno.UnsafePointerView(this[_raw]);
     Surface._registry.register(this, raw);
   }
 
+  /**
+   * Load an image from a file. Supports BMP, PNG, and JPG.
+   * @param path The relative path to the image file.
+   * @returns The loaded Surface.
+   */
   static fromFile(path: string): Surface {
     const raw = sdl2Image.symbols.IMG_Load(asCString(path));
     if (raw === null) {
@@ -1588,6 +1639,11 @@ export class Surface {
     return new Surface(raw);
   }
 
+  /**
+   * Load a BMP to a Surface.
+   * @param path The relative path to the image file.
+   * @returns The loaded Surface.
+   */
   static loadBmp(path: string): Surface {
     const raw = sdl2.symbols.SDL_LoadBMP_RW(asCString(path));
     if (raw === null) {
@@ -1596,18 +1652,30 @@ export class Surface {
     return new Surface(raw);
   }
 
+  /**
+   * The width of the image.
+   */
   get width() {
     return SDL_Surface.get(this.view, 0, "w");
   }
 
+  /**
+   * The height of the image.
+   */
   get height() {
     return SDL_Surface.get(this.view, 0, "h");
   }
 
+  /**
+   * The pitch of the image (the size of a scanline, in bytes).
+   */
   get pitch() {
     return SDL_Surface.get(this.view, 0, "pitch");
   }
 
+  /**
+   * The Rect that describes the boundaries of the image.
+   */
   get clip_rect() {
     const r = SDL_Surface.get(this.view, 0, "clip_rect");
     if (r) return new Rect(r.x, r.y, r.width, r.height);
@@ -3247,7 +3315,6 @@ export class Music {
 
 /*
 TODO:
-  - Audio Panning, Position etc.
   - Documentation.
   - Audio finished callbacks. See https://github.com/denoland/deno/pull/13162
     Looks like @littledivy has been working on synchronous callbacks from foreign funcs.
