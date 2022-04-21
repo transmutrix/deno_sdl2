@@ -937,7 +937,7 @@ export class Canvas {
     const ret = sdl2.symbols.SDL_RenderDrawLines(
       this.target,
       Deno.UnsafePointer.of(intArray),
-      intArray.length,
+      points.length,
     );
     if (ret < 0) {
       throwSDLError();
@@ -2795,7 +2795,7 @@ export class Sound {
       loops ?? 0,
       (playFor ? Math.floor(playFor * 1000) : -1));
     if (ch < 0) {
-      throwSDLError();
+      throwSDLError(); // TODO: we probably shouldn't explode here. Warn instead?
     }
     sdl2Mixer.symbols.Mix_UnregisterAllEffects(ch);
     return ch;
@@ -2817,7 +2817,7 @@ export class Sound {
       seconds ?? 1,
       (playFor ? Math.floor(playFor * 1000) : -1));
     if (ch < 0) {
-      throwSDLError();
+      throwSDLError(); // TODO: we probably shouldn't explode here. Warn instead?
     }
     sdl2Mixer.symbols.Mix_UnregisterAllEffects(ch);
     return ch;
@@ -3323,5 +3323,4 @@ TODO:
     - Mixer API reference: https://www.libsdl.org/projects/SDL_mixer/docs/SDL_mixer_75.html#SEC75
     - FFI callbacks thread: https://github.com/denoland/deno/pull/13162
   - Flesh out more of the SDL_Event stuff.
-  - Input binding? Or leave that for another library?
 */
