@@ -904,7 +904,7 @@ export class Canvas {
   }
 
   drawPoint(x: number, y: number) {
-    const ret = sdl2.symbols.SDL_RenderDrawPoint(this.target, x, y);
+    const ret = sdl2.symbols.SDL_RenderDrawPoint(this.target, Math.floor(x), Math.floor(y));
     if (ret < 0) {
       throwSDLError();
     }
@@ -993,6 +993,42 @@ export class Canvas {
       throwSDLError();
     }
     return this;
+  }
+
+  drawCircle(centreX: number, centreY: number, radius: number) {
+    const diameter = radius * 2;
+    let x = radius - 1;
+    let y = 0;
+    let tx = 1;
+    let ty = 1;
+    let error = tx - diameter;
+    const points: [number, number][] = [];
+
+    while (x >= y) {
+      //  Each of the following renders an octant of the circle
+      points.push([centreX + x, centreY - y]);
+      points.push([centreX + x, centreY + y]);
+      points.push([centreX - x, centreY - y]);
+      points.push([centreX - x, centreY + y]);
+      points.push([centreX + y, centreY - x]);
+      points.push([centreX + y, centreY + x]);
+      points.push([centreX - y, centreY - x]);
+      points.push([centreX - y, centreY + x]);
+
+      if (error <= 0) {
+        ++y;
+        error += ty;
+        ty += 2;
+      }
+
+      if (error > 0) {
+        --x;
+        tx += 2;
+        error += (tx - diameter);
+      }
+    }
+
+    this.drawPoints(points);
   }
 
   copy(texture: Texture, source?: Rect, dest?: Rect) {
