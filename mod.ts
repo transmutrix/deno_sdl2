@@ -962,7 +962,7 @@ export class Canvas {
     const ret = sdl2.symbols.SDL_RenderDrawRects(
       this.target,
       Deno.UnsafePointer.of(intArray),
-      intArray.length,
+      rects.length,
     );
     if (ret < 0) {
       throwSDLError();
@@ -987,7 +987,7 @@ export class Canvas {
     const ret = sdl2.symbols.SDL_RenderFillRects(
       this.target,
       Deno.UnsafePointer.of(intArray),
-      intArray.length,
+      rects.length,
     );
     if (ret < 0) {
       throwSDLError();
