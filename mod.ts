@@ -611,10 +611,10 @@ const sdl2Mixer = Deno.dlopen(getLibraryPath("SDL2_mixer"), {
 
 const enum Mix_InitFlag {
   FLAC = 0x00000001,
-  MOD  = 0x00000002,
-  MP3  = 0x00000008,
-  OGG  = 0x00000010,
-  MID  = 0x00000020,
+  MOD = 0x00000002,
+  MP3 = 0x00000008,
+  OGG = 0x00000010,
+  MID = 0x00000020,
   OPUS = 0x00000040,
 }
 
@@ -638,14 +638,14 @@ enum SDL_InitFlag {
   SDL_INIT_GAMECONTROLLER = 0x00002000, // SDL_INIT_GAMECONTROLLER implies SDL_INIT_JOYSTICK
   SDL_INIT_EVENTS = 0x00004000,
   SDL_INIT_SENSOR = 0x00008000,
-  SDL_INIT_EVERYTHING = SDL_INIT_TIMER 
-    | SDL_INIT_AUDIO 
-    | SDL_INIT_VIDEO 
-    | SDL_INIT_EVENTS 
-    | SDL_INIT_JOYSTICK 
-    | SDL_INIT_HAPTIC 
-    | SDL_INIT_GAMECONTROLLER 
-    | SDL_INIT_SENSOR
+  SDL_INIT_EVERYTHING = SDL_INIT_TIMER
+  | SDL_INIT_AUDIO
+  | SDL_INIT_VIDEO
+  | SDL_INIT_EVENTS
+  | SDL_INIT_JOYSTICK
+  | SDL_INIT_HAPTIC
+  | SDL_INIT_GAMECONTROLLER
+  | SDL_INIT_SENSOR
 }
 
 let context_alive = false;
@@ -847,7 +847,7 @@ export interface CopyCallEx {
   source?: Rect;
   dest?: Rect;
   radians?: number;
-  center?: {x: number; y: number};
+  center?: { x: number; y: number };
   flipX?: boolean;
   flipY?: boolean;
 }
@@ -1044,7 +1044,7 @@ export class Canvas {
     return this;
   }
 
-  copyEx(texture: Texture, source?: Rect, dest?: Rect, radians?: number, center?: {x: number, y: number}, flipX?: boolean, flipY?: boolean) {
+  copyEx(texture: Texture, source?: Rect, dest?: Rect, radians?: number, center?: { x: number, y: number }, flipX?: boolean, flipY?: boolean) {
     const ret = sdl2.symbols.SDL_RenderCopyEx(
       this.target,
       texture[_raw],
@@ -1080,7 +1080,7 @@ export class Canvas {
   //   frame = Math.floor(frame % n);
   //   if (frame < 0) frame = n - frame;
   //   const sx = Math.floor(frame % cols) * frameW;
-	//   const sy = Math.floor(frame / cols) * frameH;
+  //   const sy = Math.floor(frame / cols) * frameH;
   //   this.copy(texture, new Rect(sx, sy, frameW, frameH), new Rect(x, y, frameW, frameH));
   //   return this;
   // }
@@ -1094,21 +1094,20 @@ export class Canvas {
   //   frame = Math.floor(frame % n);
   //   if (frame < 0) frame = n - frame;
   //   const sx = Math.floor(frame % cols) * frameW;
-	//   const sy = Math.floor(frame / cols) * frameH;
+  //   const sy = Math.floor(frame / cols) * frameH;
   //   this.copyEx(texture, new Rect(sx, sy, frameW, frameH), new Rect(x, y, frameW * scaleX, frameH * scaleY), radians);
   //   return this;
   // }
 
-  copyTile(texture: Texture, tileSize: number, index: number, x: number, y: number)
-  {
-    const {w, h} = texture.query();
+  copyTile(texture: Texture, tileSize: number, index: number, x: number, y: number) {
+    const { w, h } = texture.query();
     const cols = w / tileSize;
     const rows = h / tileSize;
     const n = cols * rows;
     index = Math.floor(index % n);
     if (index < 0) index = n - index;
     const sx = Math.floor(index % cols) * tileSize;
-	  const sy = Math.floor(index / cols) * tileSize;
+    const sy = Math.floor(index / cols) * tileSize;
     this.copy(texture, new Rect(sx, sy, tileSize, tileSize), new Rect(x, y, tileSize, tileSize));
     return this;
   }
@@ -1486,10 +1485,23 @@ export class Texture {
     }
     return this;
   }
+
+  /**
+   * Get an SDL.Rect for a subtile of this texture.
+   * @param sizeX The tile size in x.
+   * @param sizeY The tile size in y.
+   * @param index Which tile/frame to get.
+   * @param optionalTarget If you don't want to allocate a new SDL.Rect
+   * @returns SDL.Rect
+   */
+  subtileByIndex(sizeX: number, sizeY: number, index: number, optionalTarget?: Rect) {
+    return Rect.subtileByIndex(this.toRect(), sizeX, sizeY, index, optionalTarget);
+  }
 }
 
 export class Rect {
   [_raw]: Uint32Array;
+
   constructor(x = 0, y = 0, w = 0, h = 0) {
     this[_raw] = new Uint32Array([x, y, w, h]);
   }
@@ -1603,11 +1615,11 @@ export class Rect {
   }
 
   static subtileByIndex(parent: Rect, sizeX: number, sizeY: number, index: number, optionalTarget?: Rect) {
-    index = Math.floor(index);
-    const rows = Math.floor(parent.height / sizeY);
     const cols = Math.floor(parent.width / sizeX);
+    const rows = Math.floor(parent.height / sizeY);
+    index = Math.floor(index % (rows * cols));
     const xTile = Math.floor(index % cols);
-    const yTile = Math.floor(index / cols) % rows;
+    const yTile = Math.floor(Math.floor(index / cols) % rows);
     return (optionalTarget ?? new Rect()).set(
       parent.x + xTile * sizeX,
       parent.y + yTile * sizeY,
@@ -2119,7 +2131,7 @@ function checkControllers() {
       if (raw.valueOf() === BigInt(0)) {
         continue;
       }
-      controllers.push({raw, id: i, connected: true});
+      controllers.push({ raw, id: i, connected: true });
       log("controller connected");
     }
   }
@@ -2975,7 +2987,7 @@ export class Sound {
       throw new Error("invalid argument");
     }
     const state = sdl2Mixer.symbols.Mix_FadingChannel(channel);
-    switch(state) {
+    switch (state) {
       case MixFadeType.In: return 'in';
       case MixFadeType.Out: return 'out';
       default: return undefined;
@@ -2996,7 +3008,7 @@ export class Sound {
    * @param channel Which channel to set, undefined or -1 to set the volume of all channels.
    * @param f The volume to set, in range [0, 1].
    */
-  static setVolume(channel: number|undefined, f: number) {
+  static setVolume(channel: number | undefined, f: number) {
     f = Math.max(0, Math.min(1, f));
     sdl2Mixer.symbols.Mix_Volume(channel ?? -1, Math.floor(f));
   }
@@ -3024,7 +3036,7 @@ export class Sound {
    * @param channel Which channel to update.
    * @param distance Ranges from 0 to 1, near to far.
    */
-   static setDistance(channel: number, distance: number) {
+  static setDistance(channel: number, distance: number) {
     distance = Math.floor(Math.max(0, Math.min(1, distance)) * 255);
     const ret = sdl2Mixer.symbols.Mix_SetDistance(channel, distance);
     if (!ret) {
