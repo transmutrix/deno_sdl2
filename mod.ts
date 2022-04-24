@@ -42,7 +42,7 @@ function log(...rest: any[]) {
 
 // deno-lint-ignore no-explicit-any
 function gcLog(...rest: any[]) {
-  if (gcLogging) console.log(...rest);
+  if (logging && gcLogging) console.log(...rest);
 }
 
 export function enableLogging() {
@@ -50,7 +50,7 @@ export function enableLogging() {
 }
 
 export function disableLogging() {
-  logging = true;
+  logging = false;
 }
 
 export function enableGCLogging() {
@@ -58,7 +58,7 @@ export function enableGCLogging() {
 }
 
 export function disableGCLogging() {
-  gcLogging = true;
+  gcLogging = false;
 }
 
 const sdl2 = Deno.dlopen(getLibraryPath("SDL2"), {
@@ -2208,6 +2208,12 @@ export class WindowBuilder {
     private flags = 0,
   ) { }
 
+  private maxWidth = 0;
+  private maxHeight = 0;
+
+  private minWidth = 0;
+  private minHeight = 0;
+
   build() {
     const title = asCString(this.title);
     const window = sdl2.symbols.SDL_CreateWindow(
@@ -2218,6 +2224,12 @@ export class WindowBuilder {
       this.height,
       this.flags,
     );
+    if (this.minWidth && this.minHeight) {
+      sdl2.symbols.SDL_SetWindowMinimumSize(window, this.minWidth, this.minHeight);
+    }
+    if (this.maxWidth && this.maxHeight) {
+      sdl2.symbols.SDL_SetWindowMaximumSize(window, this.maxWidth, this.maxHeight);
+    }
     return new Window(window);
   }
 
@@ -2228,6 +2240,18 @@ export class WindowBuilder {
 
   resizable() {
     this.flags |= WindowFlag.Resizable;
+    return this;
+  }
+
+  maxSize(maxWidth = 0, maxHeight = 0) {
+    this.maxWidth = maxWidth;
+    this.maxHeight = maxHeight;
+    return this;
+  }
+
+  minSize(minWidth = 0, minHeight = 0) {
+    this.minWidth = minWidth;
+    this.minHeight = minHeight;
     return this;
   }
 
